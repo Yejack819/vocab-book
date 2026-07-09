@@ -7,6 +7,11 @@
     <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6.x-3178C6?logo=typescript" />
     <img alt="License" src="https://img.shields.io/badge/license-MIT-blue" />
   </p>
+  <p>
+    <a href="https://vocab-book-peach.vercel.app" target="_blank">
+      <img alt="Vercel" src="https://img.shields.io/badge/demo-vocab--book--peach.vercel.app-000?logo=vercel" />
+    </a>
+  </p>
 </div>
 
 ---

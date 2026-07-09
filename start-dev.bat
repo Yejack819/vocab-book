@@ -1,0 +1,2 @@
+npx vite --host
+pause

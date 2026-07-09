@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "exportedAt": "2026-07-09T00:00:00.000Z",
+  "total": 3,
+  "words": [
+    {
+      "id": "sample001abc12345",
+      "word": "hello",
+      "phonetic": "/həˈloʊ/",
+      "meaning": "你好；喂",
+      "partOfSpeech": [
+        "interjection",
+        "noun",
+        "verb"
+      ],
+      "sentences": [
+        {
+          "english": "**Hello**, how are you today?",
+          "chinese": "你好，你今天怎么样？"
+        }
+      ],
+      "isFavorite": true,
+      "createdAt": 1780000000000
+    },
+    {
+      "id": "sample002def67890",
+      "word": "vocabulary",
+      "phonetic": "/vəˈkæbjəleri/",
+      "meaning": "词汇；词汇量",
+      "partOfSpeech": [
+        "noun"
+      ],
+      "sentences": [
+        {
+          "english": "Reading widely helps expand your **vocabulary**.",
+          "chinese": "广泛阅读有助于扩大你的词汇量。"
+        }
+      ],
+      "isFavorite": false,
+      "createdAt": 1780000001000
+    },
+    {
+      "id": "sample003ghi11223",
+      "word": "contribute to",
+      "meaning": "造成，促成；为…做贡献",
+      "partOfSpeech": [
+        "verb",
+        "phrase"
+      ],
+      "sentences": [
+        {
+          "english": "Research shows, race walking most likely **contributing to** fewer injuries.",
+          "chinese": "研究表明，竞走很有可能造成更少的损伤。"
+        }
+      ],
+      "isFavorite": false,
+      "createdAt": 1780000002000
+    }
+  ]
+}

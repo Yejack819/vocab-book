@@ -260,7 +260,7 @@ export default function WordList({ words, filter, onFilterChange, onRefresh }: W
       </div>
 
       {/* 批量操作工具栏 */}
-      <div className={`batch-toolbar ${hasSelection ? 'visible' : ''}`}>
+      <div className={`batch-toolbar visible`}>
         <label className="batch-select-all">
           <input
             type="checkbox"
@@ -270,26 +270,19 @@ export default function WordList({ words, filter, onFilterChange, onRefresh }: W
           />
           全选
         </label>
-        {hasSelection && (
-          <>
-            <span className="batch-info">已选 {selectedIds.size} 项</span>
-            <button className="btn btn-small" onClick={() => batchFavorite(true)}>
-              ★ 批量收藏
-            </button>
-            <button className="btn btn-small" onClick={() => batchFavorite(false)}>
-              ☆ 取消收藏
-            </button>
-            <button className="btn btn-small btn-danger" onClick={batchDelete}>
-              🗑 批量删除
-            </button>
-            <button className="btn btn-small" onClick={() => setShowBatchCsv(true)}>
-              📊 导出 CSV
-            </button>
-          </>
-        )}
-        {!hasSelection && (
-          <span className="batch-info batch-hint">勾选单词前的复选框进行批量操作</span>
-        )}
+        <span className="batch-info">已选 {selectedIds.size} 项</span>
+        <button className="btn btn-small" onClick={() => batchFavorite(true)}>
+          ★ 批量收藏
+        </button>
+        <button className="btn btn-small" onClick={() => batchFavorite(false)}>
+          ☆ 取消收藏
+        </button>
+        <button className="btn btn-small btn-danger" onClick={batchDelete}>
+          🗑 批量删除
+        </button>
+        <button className="btn btn-small" onClick={() => setShowBatchCsv(true)}>
+          📊 导出 CSV
+        </button>
       </div>
 
       {/* 列表 + A-Z 侧边栏 */}

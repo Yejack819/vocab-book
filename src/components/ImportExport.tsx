@@ -93,10 +93,14 @@ export default function ImportExport({ onRefresh }: ImportExportProps) {
   };
 
   const handleClearAll = () => {
-    if (window.confirm('确定要清除所有单词数据吗？此操作不可恢复！')) {
+    if (window.confirm('确定要恢复出厂设置吗？此操作将清除所有单词、AI 配置和设置，不可恢复！')) {
       clearAll();
-      showMsg('info', '已清除所有数据');
+      localStorage.removeItem('kun-vocab-ai-settings');
+      localStorage.removeItem('kun-vocab-ai-stats');
+      localStorage.removeItem('kun-vocab-theme');
+      showMsg('info', '已恢复出厂设置，页面即将刷新');
       onRefresh();
+      setTimeout(() => window.location.reload(), 1500);
     }
   };
 
@@ -159,8 +163,8 @@ export default function ImportExport({ onRefresh }: ImportExportProps) {
 
         <div className="action-group danger">
           <h3>危险操作</h3>
-          <p className="action-desc">彻底清除所有单词数据，不可恢复</p>
-          <button className="btn btn-danger" onClick={handleClearAll}>🗑️ 清除全部数据</button>
+          <p className="action-desc">清除全部数据（单词、AI 设置、请求统计、主题偏好等），相当于恢复出厂设置。</p>
+          <button className="btn btn-danger" onClick={handleClearAll}>🗑️ 恢复出厂设置</button>
         </div>
       </div>
 

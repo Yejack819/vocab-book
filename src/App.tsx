@@ -77,7 +77,7 @@ function App() {
             className={`nav-btn ${tab === 'settings' ? 'active' : ''}`}
             onClick={() => setTab('settings')}
           >
-            ⚙️ 设置
+            🤖 AI设置
           </button>
           <button
             className="theme-toggle"

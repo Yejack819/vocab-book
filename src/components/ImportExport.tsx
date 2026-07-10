@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { importJson, exportJson, clearAll, getStats } from '../utils/storage';
 import type { VocabExport } from '../types/vocab';
 
@@ -6,11 +6,16 @@ interface ImportExportProps {
   onRefresh: () => void;
 }
 
+type CsvSortBy = 'createdAt' | 'word' | 'meaning';
+
 export default function ImportExport({ onRefresh }: ImportExportProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [importMode, setImportMode] = useState<'append' | 'overwrite'>('append');
   const [csvFavOnly, setCsvFavOnly] = useState(false);
+  const [showCsvDialog, setShowCsvDialog] = useState(false);
+  const [csvSortBy, setCsvSortBy] = useState<CsvSortBy>('createdAt');
+  const [csvSortOrder, setCsvSortOrder] = useState<'asc' | 'desc'>('desc');
   const stats = getStats();
 
   const showMsg = (type: 'success' | 'error' | 'info', text: string) => {
@@ -27,10 +32,7 @@ export default function ImportExport({ onRefresh }: ImportExportProps) {
       const text = await file.text();
       const json: VocabExport = JSON.parse(text);
       if (!json.words || !Array.isArray(json.words)) { showMsg('error', '无效的 JSON 格式：缺少 words 数组'); return; }
-
-      if (importMode === 'overwrite') {
-        clearAll();
-      }
+      if (importMode === 'overwrite') clearAll();
       const result = importJson(json);
       showMsg('success', `导入完成（${importMode === 'overwrite' ? '覆盖' : '追加'}）：新增 ${result.imported} 个，跳过 ${result.skipped} 个`);
       onRefresh();
@@ -45,38 +47,49 @@ export default function ImportExport({ onRefresh }: ImportExportProps) {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `vocab-export-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.json`;
+    a.href = url; a.download = `vocab-export-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.json`;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     showMsg('success', `JSON 导出完成，共 ${data.total} 个单词`);
   };
 
-  const handleExportCsv = () => {
+  // CSV dialog: preview data
+  const csvPreview = useMemo(() => {
     const allData = exportJson();
-    const words = csvFavOnly ? allData.words.filter(w => w.isFavorite) : allData.words;
-    const total = words.length;
-    // BOM for Excel UTF-8 + header
+    let list = csvFavOnly ? allData.words.filter(w => w.isFavorite) : [...allData.words];
+    list.sort((a, b) => {
+      let cmp = 0;
+      if (csvSortBy === 'word') cmp = a.word.localeCompare(b.word);
+      else if (csvSortBy === 'meaning') cmp = a.meaning.localeCompare(b.meaning);
+      else cmp = a.createdAt - b.createdAt;
+      return csvSortOrder === 'desc' ? -cmp : cmp;
+    });
+    return { total: list.length, rows: list.slice(0, 3), all: list };
+  }, [csvFavOnly, csvSortBy, csvSortOrder]);
+
+  const doExportCsv = () => {
+    const csvRows = csvPreview.all;
     let csv = '\uFEFF英文单词,音标,词性,释义,例句,例句翻译\n';
-    for (const w of words) {
-      const word = `"${(w.word || '').replace(/"/g, '""')}"`;
-      const phonetic = `"${(w.phonetic || '').replace(/"/g, '""')}"`;
-      const pos = `"${(w.partOfSpeech || []).join('; ').replace(/"/g, '""')}"`;
-      const meaning = `"${(w.meaning || '').replace(/"/g, '""')}"`;
-      const sentenceEn = w.sentences.length > 0 ? `"${w.sentences.map(s => s.english).join(' | ').replace(/"/g, '""')}"` : '""';
-      const sentenceZh = w.sentences.length > 0 ? `"${w.sentences.map(s => s.chinese).join(' | ').replace(/"/g, '""')}"` : '""';
-      csv += [word, phonetic, pos, meaning, sentenceEn, sentenceZh].join(',') + '\n';
+    for (const w of csvRows) {
+      const esc = (s: string) => `"${(s || '').replace(/"/g, '""')}"`;
+      csv += [
+        esc(w.word), esc(w.phonetic || ''),
+        esc((w.partOfSpeech || []).join('; ')),
+        esc(w.meaning),
+        esc(w.sentences.map(s => s.english).join(' | ')),
+        esc(w.sentences.map(s => s.chinese).join(' | ')),
+      ].join(',') + '\n';
     }
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `vocab-export-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.csv`;
+    a.href = url; a.download = `vocab-export-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.csv`;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showMsg('success', `CSV 导出完成，共 ${total} 个单词`);
+    setShowCsvDialog(false);
+    showMsg('success', `CSV 导出完成，共 ${csvRows.length} 个单词`);
   };
 
   const handleClearAll = () => {
@@ -135,12 +148,12 @@ export default function ImportExport({ onRefresh }: ImportExportProps) {
             <input type="checkbox" checked={csvFavOnly} onChange={e => setCsvFavOnly(e.target.checked)} />
             仅导出收藏单词
           </label>
-          <button className="btn" onClick={handleExportCsv}>📊 导出 CSV</button>
+          <button className="btn" onClick={() => setShowCsvDialog(true)}>📊 导出 CSV</button>
         </div>
 
         <div className="action-group">
           <h3>示例数据</h3>
-          <p className="action-desc">导入 49 个示例单词数据用于体验</p>
+          <p className="action-desc">导入 3 个示例单词数据用于体验</p>
           <button className="btn" onClick={handleDownloadSample}>📥 加载示例数据</button>
         </div>
 
@@ -150,6 +163,60 @@ export default function ImportExport({ onRefresh }: ImportExportProps) {
           <button className="btn btn-danger" onClick={handleClearAll}>🗑️ 清除全部数据</button>
         </div>
       </div>
+
+      {/* CSV 导出弹窗 */}
+      {showCsvDialog && (
+        <div className="modal-overlay" onClick={() => setShowCsvDialog(false)}>
+          <div className="modal csv-modal" onClick={e => e.stopPropagation()}>
+            <h2>📊 导出 CSV</h2>
+            <p className="csv-modal-desc">选择排序方式，预览前 3 行，确认后导出。</p>
+
+            <div className="csv-modal-controls">
+              <label>
+                排序：
+                <select value={csvSortBy} onChange={e => setCsvSortBy(e.target.value as CsvSortBy)}>
+                  <option value="createdAt">创建时间</option>
+                  <option value="word">A-Z</option>
+                  <option value="meaning">释义</option>
+                </select>
+              </label>
+              <button className="sort-order-btn" onClick={() => setCsvSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>
+                {csvSortOrder === 'asc' ? '↑ 升序' : '↓ 降序'}
+              </button>
+              <span className="csv-modal-count">共 {csvPreview.total} 条</span>
+            </div>
+
+            <table className="csv-preview-table">
+              <thead>
+                <tr>
+                  <th>英文单词</th><th>音标</th><th>词性</th><th>释义</th><th>例句</th><th>例句翻译</th>
+                </tr>
+              </thead>
+              <tbody>
+                {csvPreview.rows.length === 0 ? (
+                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 16 }}>无数据</td></tr>
+                ) : (
+                  csvPreview.rows.map((w, i) => (
+                    <tr key={i}>
+                      <td>{w.word}</td>
+                      <td style={{ fontFamily: '"Merriweather","Georgia",serif' }}>{w.phonetic || '-'}</td>
+                      <td>{(w.partOfSpeech || []).join('; ')}</td>
+                      <td>{w.meaning}</td>
+                      <td>{w.sentences.map(s => s.english).join(' | ')}</td>
+                      <td>{w.sentences.map(s => s.chinese).join(' | ')}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+
+            <div className="form-actions">
+              <button className="btn" onClick={() => setShowCsvDialog(false)}>取消</button>
+              <button className="btn btn-primary" onClick={doExportCsv}>💾 确认导出 ({csvPreview.total} 条)</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {message && <div className={`toast toast-${message.type}`}>{message.text}</div>}
     </div>

@@ -1,14 +1,17 @@
-import { useRef, useState, useMemo } from 'react';
-import { importJson, exportJson, clearAll, getStats } from '../utils/storage';
-import type { VocabExport } from '../types/vocab';
+﻿import { useRef, useState, useMemo } from 'react';
+import { importJson, exportJson, clearCurrentNotebook, factoryReset, getStats, addNotebook, renameNotebook, deleteNotebook } from '../utils/storage';
+import type { VocabExport, Notebook } from '../types/vocab';
 
 interface ImportExportProps {
   onRefresh: () => void;
+  currentNb: Notebook;
+  notebooks: Notebook[];
+  onSwitchNotebook: (id: string) => void;
 }
 
 type CsvSortBy = 'createdAt' | 'word' | 'meaning';
 
-export default function ImportExport({ onRefresh }: ImportExportProps) {
+export default function ImportExport({ onRefresh, currentNb, notebooks, onSwitchNotebook }: ImportExportProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [importMode, setImportMode] = useState<'append' | 'overwrite'>('append');
@@ -24,21 +27,18 @@ export default function ImportExport({ onRefresh }: ImportExportProps) {
   };
 
   const handleImport = () => fileInputRef.current?.click();
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       const text = await file.text();
       const json: VocabExport = JSON.parse(text);
-      if (!json.words || !Array.isArray(json.words)) { showMsg('error', '无效的 JSON 格式：缺少 words 数组'); return; }
-      if (importMode === 'overwrite') clearAll();
+      if (!json.words || !Array.isArray(json.words)) { showMsg('error', '无效的 JSON 格式'); return; }
+      if (importMode === 'overwrite') clearCurrentNotebook();
       const result = importJson(json);
       showMsg('success', `导入完成（${importMode === 'overwrite' ? '覆盖' : '追加'}）：新增 ${result.imported} 个，跳过 ${result.skipped} 个`);
       onRefresh();
-    } catch (err) {
-      showMsg('error', `导入失败：${err instanceof Error ? err.message : '文件解析错误'}`);
-    }
+    } catch (err) { showMsg('error', '导入失败'); }
     e.target.value = '';
   };
 
@@ -54,7 +54,6 @@ export default function ImportExport({ onRefresh }: ImportExportProps) {
     showMsg('success', `JSON 导出完成，共 ${data.total} 个单词`);
   };
 
-  // CSV dialog: preview data
   const csvPreview = useMemo(() => {
     const allData = exportJson();
     let list = csvFavOnly ? allData.words.filter(w => w.isFavorite) : [...allData.words];
@@ -66,20 +65,14 @@ export default function ImportExport({ onRefresh }: ImportExportProps) {
       return csvSortOrder === 'desc' ? -cmp : cmp;
     });
     return { total: list.length, rows: list.slice(0, 3), all: list };
-  }, [csvFavOnly, csvSortBy, csvSortOrder]);
+  }, [csvFavOnly, csvSortBy, csvSortOrder, currentNb.id]);
 
   const doExportCsv = () => {
     const csvRows = csvPreview.all;
     let csv = '\uFEFF英文单词,音标,词性,释义,例句,例句翻译\n';
     for (const w of csvRows) {
       const esc = (s: string) => `"${(s || '').replace(/"/g, '""')}"`;
-      csv += [
-        esc(w.word), esc(w.phonetic || ''),
-        esc((w.partOfSpeech || []).join('; ')),
-        esc(w.meaning),
-        esc(w.sentences.map(s => s.english).join(' | ')),
-        esc(w.sentences.map(s => s.chinese).join(' | ')),
-      ].join(',') + '\n';
+      csv += [esc(w.word), esc(w.phonetic || ''), esc((w.partOfSpeech || []).join('; ')), esc(w.meaning), esc(w.sentences.map(s => s.english).join(' | ')), esc(w.sentences.map(s => s.chinese).join(' | '))].join(',') + '\n';
     }
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -92,28 +85,38 @@ export default function ImportExport({ onRefresh }: ImportExportProps) {
     showMsg('success', `CSV 导出完成，共 ${csvRows.length} 个单词`);
   };
 
-  const handleClearAll = () => {
-    if (window.confirm('确定要恢复出厂设置吗？此操作将清除所有单词、AI 配置和设置，不可恢复！')) {
-      clearAll();
-      localStorage.removeItem('kun-vocab-ai-settings');
-      localStorage.removeItem('kun-vocab-ai-stats');
-      localStorage.removeItem('kun-vocab-theme');
+  const handleFactoryReset = () => {
+    if (window.confirm('确定要恢复出厂设置吗？此操作将清除所有单词本、单词、AI 配置和设置，不可恢复！')) {
+      factoryReset();
       showMsg('info', '已恢复出厂设置，页面即将刷新');
-      onRefresh();
       setTimeout(() => window.location.reload(), 1500);
     }
   };
 
-  const handleDownloadSample = async () => {
-    try {
-      const resp = await fetch('/vocab-export-20260707.json');
-      if (!resp.ok) throw new Error('');
-      const json: VocabExport = await resp.json();
-      const result = importJson(json);
-      showMsg('success', `示例数据导入完成：新增 ${result.imported} 个，跳过 ${result.skipped} 个`);
+  const handleAddNb = () => {
+    const name = prompt('请输入新单词本的名称：');
+    if (name && name.trim()) {
+      addNotebook(name.trim());
       onRefresh();
-    } catch {
-      showMsg('error', '示例数据加载失败');
+    }
+  };
+
+  const handleRenameNb = (id: string) => {
+    const nb = notebooks.find(n => n.id === id);
+    if (!nb) return;
+    const name = prompt('请输入新名称：', nb.name);
+    if (name && name.trim() && name.trim() !== nb.name) {
+      renameNotebook(id, name.trim());
+      onRefresh();
+    }
+  };
+
+  const handleDeleteNb = (id: string) => {
+    if (notebooks.length <= 1) { showMsg('error', '至少保留一个单词本'); return; }
+    if (window.confirm('确定要删除此单词本及其所有单词吗？不可恢复！')) {
+      deleteNotebook(id);
+      onRefresh();
+      if (id === currentNb.id) onSwitchNotebook(notebooks.filter(n => n.id !== id)[0].id);
     }
   };
 
@@ -121,8 +124,26 @@ export default function ImportExport({ onRefresh }: ImportExportProps) {
     <div className="import-export">
       <h2>数据管理</h2>
 
+      {/* Notebook Manager */}
+      <div className="action-group" style={{ marginBottom: 20 }}>
+        <h3>📒 单词本管理</h3>
+        <p className="action-desc">当前：<strong>{currentNb.name}</strong>（共 {notebooks.length} 本）</p>
+        <div className="notebook-list">
+          {notebooks.map(nb => (
+            <div key={nb.id} className={`notebook-item ${nb.id === currentNb.id ? 'active' : ''}`}>
+              <span className="notebook-name" onClick={() => { onSwitchNotebook(nb.id); }}>{nb.name}</span>
+              <div className="notebook-actions">
+                <button className="btn btn-small" onClick={() => handleRenameNb(nb.id)}>✏️</button>
+                <button className="btn btn-small btn-danger" onClick={() => handleDeleteNb(nb.id)}>🗑️</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <button className="btn btn-small" onClick={handleAddNb} style={{ marginTop: 8 }}>＋ 新建单词本</button>
+      </div>
+
       <div className="stats-cards">
-        <div className="stat-card"><span className="stat-number">{stats.total}</span><span className="stat-label">总单词</span></div>
+        <div className="stat-card"><span className="stat-number">{stats.total}</span><span className="stat-label">单词（当前本）</span></div>
         <div className="stat-card"><span className="stat-number">{stats.favoriteCount}</span><span className="stat-label">收藏</span></div>
         <div className="stat-card"><span className="stat-number">{Object.keys(stats.partOfSpeechCounts).length}</span><span className="stat-label">词性种类</span></div>
       </div>
@@ -134,20 +155,20 @@ export default function ImportExport({ onRefresh }: ImportExportProps) {
             <button className={`import-mode-tab ${importMode === 'append' ? 'active' : ''}`} onClick={() => setImportMode('append')}>追加</button>
             <button className={`import-mode-tab ${importMode === 'overwrite' ? 'active' : ''}`} onClick={() => setImportMode('overwrite')}>覆盖</button>
           </div>
-          <p className="action-desc">{importMode === 'append' ? '保留现有数据，只添加新单词' : '清除全部数据后再导入'}</p>
+          <p className="action-desc">{importMode === "append" ? "保留现有数据，只添加新单词" : "先清除当前单词本，再导入"}</p>
           <button className="btn btn-primary" onClick={handleImport}>📂 导入 JSON</button>
           <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleFileChange} />
         </div>
 
         <div className="action-group">
           <h3>导出 JSON</h3>
-          <p className="action-desc">导出为标准的 vocab-export JSON 格式</p>
+          <p className="action-desc">导出当前单词本的数据</p>
           <button className="btn btn-primary" onClick={handleExportJson}>💾 导出 JSON</button>
         </div>
 
         <div className="action-group">
           <h3>导出 CSV</h3>
-          <p className="action-desc">导出为表格格式，可用 Excel/WPS 打开。</p>
+          <p className="action-desc">导出当前单词本为表格格式。</p>
           <label className="csv-fav-toggle">
             <input type="checkbox" checked={csvFavOnly} onChange={e => setCsvFavOnly(e.target.checked)} />
             仅导出收藏单词
@@ -157,63 +178,39 @@ export default function ImportExport({ onRefresh }: ImportExportProps) {
 
         <div className="action-group">
           <h3>示例数据</h3>
-          <p className="action-desc">导入 3 个示例单词数据用于体验</p>
-          <button className="btn" onClick={handleDownloadSample}>📥 加载示例数据</button>
+          <p className="action-desc">导入 3 个示例单词到当前单词本</p>
+          <button className="btn btn-small" onClick={async () => {
+            try {
+              const resp = await fetch('/vocab-export-20260707.json');
+              if (!resp.ok) throw new Error();
+              const json: VocabExport = await resp.json();
+              const result = importJson(json);
+              showMsg('success', `示例数据导入完成：新增 ${result.imported} 个`);
+              onRefresh();
+            } catch { showMsg('error', '示例数据加载失败'); }
+          }}>📥 加载示例数据</button>
         </div>
 
         <div className="action-group danger">
           <h3>危险操作</h3>
-          <p className="action-desc">清除全部数据（单词、AI 设置、请求统计、主题偏好等），相当于恢复出厂设置。</p>
-          <button className="btn btn-danger" onClick={handleClearAll}>🗑️ 恢复出厂设置</button>
+          <p className="action-desc">清除所有单词本、单词、AI 设置和统计，恢复出厂状态。</p>
+          <button className="btn btn-danger" onClick={handleFactoryReset}>🗑️ 恢复出厂设置</button>
         </div>
       </div>
 
-      {/* CSV 导出弹窗 */}
       {showCsvDialog && (
         <div className="modal-overlay" onClick={() => setShowCsvDialog(false)}>
           <div className="modal csv-modal" onClick={e => e.stopPropagation()}>
             <h2>📊 导出 CSV</h2>
-            <p className="csv-modal-desc">选择排序方式，预览前 3 行，确认后导出。</p>
-
+            <p className="csv-modal-desc">选择排序方式，预览前 3 行。</p>
             <div className="csv-modal-controls">
-              <label>
-                排序：
-                <select value={csvSortBy} onChange={e => setCsvSortBy(e.target.value as CsvSortBy)}>
-                  <option value="createdAt">创建时间</option>
-                  <option value="word">A-Z</option>
-                  <option value="meaning">释义</option>
-                </select>
-              </label>
-              <button className="sort-order-btn" onClick={() => setCsvSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>
-                {csvSortOrder === 'asc' ? '↑ 升序' : '↓ 降序'}
-              </button>
+              <label>排序：<select value={csvSortBy} onChange={e => setCsvSortBy(e.target.value as CsvSortBy)}><option value="createdAt">创建时间</option><option value="word">A-Z</option><option value="meaning">释义</option></select></label>
+              <button className="sort-order-btn" onClick={() => setCsvSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>{csvSortOrder === 'asc' ? '↑ 升序' : '↓ 降序'}</button>
               <span className="csv-modal-count">共 {csvPreview.total} 条</span>
             </div>
-
-            <table className="csv-preview-table">
-              <thead>
-                <tr>
-                  <th>英文单词</th><th>音标</th><th>词性</th><th>释义</th><th>例句</th><th>例句翻译</th>
-                </tr>
-              </thead>
-              <tbody>
-                {csvPreview.rows.length === 0 ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 16 }}>无数据</td></tr>
-                ) : (
-                  csvPreview.rows.map((w, i) => (
-                    <tr key={i}>
-                      <td>{w.word}</td>
-                      <td style={{ fontFamily: '"Merriweather","Georgia",serif' }}>{w.phonetic || '-'}</td>
-                      <td>{(w.partOfSpeech || []).join('; ')}</td>
-                      <td>{w.meaning}</td>
-                      <td>{w.sentences.map(s => s.english).join(' | ')}</td>
-                      <td>{w.sentences.map(s => s.chinese).join(' | ')}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
+            <table className="csv-preview-table"><thead><tr><th>英文单词</th><th>音标</th><th>词性</th><th>释义</th><th>例句</th><th>例句翻译</th></tr></thead>
+              <tbody>{csvPreview.rows.length === 0 ? <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 16 }}>无数据</td></tr> : csvPreview.rows.map((w, i) => (<tr key={i}><td>{w.word}</td><td style={{ fontFamily: '"Merriweather","Georgia",serif' }}>{w.phonetic || '-'}</td><td>{(w.partOfSpeech || []).join('; ')}</td><td>{w.meaning}</td><td>{w.sentences.map(s => s.english).join(' | ')}</td><td>{w.sentences.map(s => s.chinese).join(' | ')}</td></tr>))}</tbody>
             </table>
-
             <div className="form-actions">
               <button className="btn" onClick={() => setShowCsvDialog(false)}>取消</button>
               <button className="btn btn-primary" onClick={doExportCsv}>💾 确认导出 ({csvPreview.total} 条)</button>

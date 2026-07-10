@@ -87,3 +87,10 @@ export const DEFAULT_AI_STATS: AiStats = {
   emptyResponse: 0,
   estimatedTokens: { prompt: 0, completion: 0 },
 };
+
+/** 单词本 */
+export interface Notebook {
+  id: string;
+  name: string;
+  createdAt: number;
+}

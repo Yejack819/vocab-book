@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import type { VocabWord, FilterOptions } from '../types/vocab';
-import { toggleFavorite, deleteWord } from '../utils/storage';
+import type { VocabWord, FilterOptions, Notebook } from '../types/vocab';
+import { toggleFavorite, deleteWord, loadNotebooks, getCurrentNotebookId, moveWordsBetweenNotebooks } from '../utils/storage';
 import WordForm from './WordForm';
 
 interface WordListProps {
@@ -31,6 +31,14 @@ export default function WordList({ words, filter, onFilterChange, onRefresh }: W
   const [showBatchCsv, setShowBatchCsv] = useState(false);
   const [batchCsvSortBy, setBatchCsvSortBy] = useState<'createdAt' | 'word' | 'meaning'>('createdAt');
   const [batchCsvOrder, setBatchCsvOrder] = useState<'asc' | 'desc'>('desc');
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [targetNbId, setTargetNbId] = useState('');
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showMsg = (text: string) => {
+    setToast(text);
+    setTimeout(() => setToast(null), 3000);
+  };
   const gridRef = useRef<HTMLDivElement>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
@@ -108,6 +116,19 @@ export default function WordList({ words, filter, onFilterChange, onRefresh }: W
       onRefresh();
     }
   }, [onRefresh]);
+
+  const otherNotebooks: Notebook[] = loadNotebooks().filter(nb => nb.id !== getCurrentNotebookId());
+
+  const handleMove = () => {
+    if (!targetNbId) return;
+    const nbName = otherNotebooks.find(n => n.id === targetNbId)?.name || '目标单词本';
+    const count = moveWordsBetweenNotebooks([...selectedIds], targetNbId);
+    setSelectedIds(new Set());
+    setShowMoveModal(false);
+    setTargetNbId('');
+    onRefresh();
+    showMsg(`已移动 ${count} 个单词到「${nbName}」`);
+  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -280,6 +301,9 @@ export default function WordList({ words, filter, onFilterChange, onRefresh }: W
         <button className="btn btn-small" onClick={() => setShowBatchCsv(true)}>
           📊 导出 CSV
         </button>
+        <button className="btn btn-small" onClick={() => setShowMoveModal(true)}>
+          📂 移动
+        </button>
       </div>
 
       {/* 列表 + A-Z 侧边栏 */}
@@ -431,6 +455,56 @@ export default function WordList({ words, filter, onFilterChange, onRefresh }: W
         </div>
       )}
 
+      {/* CSV 弹窗 */}
+      {showBatchCsv && (
+        <div className="modal-overlay" onClick={() => setShowBatchCsv(false)}>
+          <div className="modal csv-modal" onClick={e => e.stopPropagation()}>
+            <h2>📊 导出选中单词为 CSV</h2>
+            <p className="csv-modal-desc">已选 {batchCsvPreview.total} 个单词，选择排序方式后确认导出。</p>
+            <div className="csv-modal-controls">
+              <label>排序：<select value={batchCsvSortBy} onChange={e => setBatchCsvSortBy(e.target.value as any)}>
+                <option value="createdAt">创建时间</option>
+                <option value="word">A-Z</option>
+                <option value="meaning">释义</option>
+              </select></label>
+              <button className="sort-order-btn" onClick={() => setBatchCsvOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>{batchCsvOrder === 'asc' ? '↑ 升序' : '↓ 降序'}</button>
+              <span className="csv-modal-count">共 {batchCsvPreview.total} 条</span>
+            </div>
+            <table className="csv-preview-table">
+              <thead><tr><th>英文单词</th><th>音标</th><th>词性</th><th>释义</th><th>例句</th><th>例句翻译</th></tr></thead>
+              <tbody>{batchCsvPreview.rows.length === 0 ? <tr><td colSpan={6} style={{textAlign:'center', color:'var(--text-secondary)', padding:16}}>无数据</td></tr> : batchCsvPreview.rows.map((rw,i) => <tr key={i}><td>{rw.word}</td><td style={{fontFamily:'"Merriweather","Georgia",serif'}}>{rw.phonetic||'-'}</td><td>{(rw.partOfSpeech||[]).join('; ')}</td><td>{rw.meaning}</td><td>{rw.sentences.map(s=>s.english).join(' | ')}</td><td>{rw.sentences.map(s=>s.chinese).join(' | ')}</td></tr>)}</tbody>
+            </table>
+            <div className="form-actions">
+              <button className="btn" onClick={() => setShowBatchCsv(false)}>取消</button>
+              <button className="btn btn-primary" onClick={doBatchCsv}>💾 确认导出 ({batchCsvPreview.total} 条)</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 移动弹窗 */}
+      {showMoveModal && (
+        <div className="modal-overlay" onClick={() => setShowMoveModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>📂 移动选中单词</h2>
+            <p style={{marginBottom:16,color:'var(--text-secondary)'}}>将选中的 {selectedIds.size} 个单词移动到：</p>
+            <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:16}}>
+              {otherNotebooks.map(nb => (
+                <label key={nb.id} style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',padding:'8px 12px',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)'}}>
+                  <input type="radio" name="tnb" value={nb.id} checked={targetNbId===nb.id} onChange={() => setTargetNbId(nb.id)} />
+                  {nb.name}
+                </label>
+              ))}
+              {otherNotebooks.length === 0 && <p style={{color:'var(--text-secondary)'}}>没有其他单词本，请先在「数据」页创建。</p>}
+            </div>
+            <div className="form-actions">
+              <button className="btn" onClick={() => setShowMoveModal(false)}>取消</button>
+              <button className="btn btn-primary" onClick={handleMove} disabled={!targetNbId}>确认移动</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 添加/编辑弹窗 */}
       {(showAddForm || editingWord) && (
         <div className="modal-overlay" onClick={() => { setShowAddForm(false); setEditingWord(null); }}>
@@ -447,6 +521,8 @@ export default function WordList({ words, filter, onFilterChange, onRefresh }: W
           </div>
         </div>
       )}
+
+      {toast && <div className="toast toast-success">{toast}</div>}
     </div>
   );
 }

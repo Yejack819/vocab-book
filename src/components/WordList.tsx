@@ -28,6 +28,9 @@ export default function WordList({ words, filter, onFilterChange, onRefresh }: W
   const [editingWord, setEditingWord] = useState<VocabWord | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBatchCsv, setShowBatchCsv] = useState(false);
+  const [batchCsvSortBy, setBatchCsvSortBy] = useState<'createdAt' | 'word' | 'meaning'>('createdAt');
+  const [batchCsvOrder, setBatchCsvOrder] = useState<'asc' | 'desc'>('desc');
   const gridRef = useRef<HTMLDivElement>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
@@ -121,6 +124,36 @@ export default function WordList({ words, filter, onFilterChange, onRefresh }: W
 
   const deselectAll = () => {
     setSelectedIds(new Set());
+  };
+
+  // Batch CSV export
+  const batchCsvPreview = useMemo(() => {
+    const list = words.filter(w => selectedIds.has(w.id));
+    list.sort((a, b) => {
+      let cmp = 0;
+      if (batchCsvSortBy === 'word') cmp = a.word.localeCompare(b.word);
+      else if (batchCsvSortBy === 'meaning') cmp = a.meaning.localeCompare(b.meaning);
+      else cmp = a.createdAt - b.createdAt;
+      return batchCsvOrder === 'desc' ? -cmp : cmp;
+    });
+    return { total: list.length, rows: list.slice(0, 3), all: list };
+  }, [selectedIds, words, batchCsvSortBy, batchCsvOrder]);
+
+  const doBatchCsv = () => {
+    const csvRows = batchCsvPreview.all;
+    let csv = '\uFEFF英文单词,音标,词性,释义,例句,例句翻译\n';
+    for (const w of csvRows) {
+      const esc = (s: string) => `"${(s || '').replace(/"/g, '""')}"`;
+      csv += [esc(w.word), esc(w.phonetic || ''), esc((w.partOfSpeech || []).join('; ')), esc(w.meaning), esc(w.sentences.map(s => s.english).join(' | ')), esc(w.sentences.map(s => s.chinese).join(' | '))].join(',') + '\n';
+    }
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `vocab-selected-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.csv`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setShowBatchCsv(false);
   };
 
 
@@ -249,6 +282,9 @@ export default function WordList({ words, filter, onFilterChange, onRefresh }: W
             <button className="btn btn-small btn-danger" onClick={batchDelete}>
               🗑 批量删除
             </button>
+            <button className="btn btn-small" onClick={() => setShowBatchCsv(true)}>
+              📊 导出 CSV
+            </button>
           </>
         )}
         {!hasSelection && (
@@ -350,6 +386,60 @@ export default function WordList({ words, filter, onFilterChange, onRefresh }: W
           </nav>
         )}
       </div>
+
+      {/* 批量 CSV 弹窗 */}
+      {showBatchCsv && (
+        <div className="modal-overlay" onClick={() => setShowBatchCsv(false)}>
+          <div className="modal csv-modal" onClick={e => e.stopPropagation()}>
+            <h2>📊 导出选中单词为 CSV</h2>
+            <p className="csv-modal-desc">已选 {batchCsvPreview.total} 个单词，选择排序方式后确认导出。</p>
+
+            <div className="csv-modal-controls">
+              <label>
+                排序：
+                <select value={batchCsvSortBy} onChange={e => setBatchCsvSortBy(e.target.value as any)}>
+                  <option value="createdAt">创建时间</option>
+                  <option value="word">A-Z</option>
+                  <option value="meaning">释义</option>
+                </select>
+              </label>
+              <button className="sort-order-btn" onClick={() => setBatchCsvOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>
+                {batchCsvOrder === 'asc' ? '↑ 升序' : '↓ 降序'}
+              </button>
+              <span className="csv-modal-count">共 {batchCsvPreview.total} 条</span>
+            </div>
+
+            <table className="csv-preview-table">
+              <thead>
+                <tr>
+                  <th>英文单词</th><th>音标</th><th>词性</th><th>释义</th><th>例句</th><th>例句翻译</th>
+                </tr>
+              </thead>
+              <tbody>
+                {batchCsvPreview.rows.length === 0 ? (
+                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 16 }}>无数据</td></tr>
+                ) : (
+                  batchCsvPreview.rows.map((rw, i) => (
+                    <tr key={i}>
+                      <td>{rw.word}</td>
+                      <td style={{ fontFamily: '"Merriweather","Georgia",serif' }}>{rw.phonetic || '-'}</td>
+                      <td>{(rw.partOfSpeech || []).join('; ')}</td>
+                      <td>{rw.meaning}</td>
+                      <td>{rw.sentences.map(s => s.english).join(' | ')}</td>
+                      <td>{rw.sentences.map(s => s.chinese).join(' | ')}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+
+            <div className="form-actions">
+              <button className="btn" onClick={() => setShowBatchCsv(false)}>取消</button>
+              <button className="btn btn-primary" onClick={doBatchCsv}>💾 确认导出 ({batchCsvPreview.total} 条)</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 添加/编辑弹窗 */}
       {(showAddForm || editingWord) && (

@@ -34,7 +34,7 @@ export interface FilterOptions {
 }
 
 /** 主题模式 */
-export type ThemeMode = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark' | 'system';
 
 /** AI 设置 */
 export interface AiSettings {

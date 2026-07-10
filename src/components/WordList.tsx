@@ -168,19 +168,6 @@ export default function WordList({ words, filter, onFilterChange, onRefresh }: W
     }
   };
 
-  const batchFavorite = (value: boolean) => {
-    if (selectedIds.size === 0) return;
-    for (const id of selectedIds) {
-      const word = words.find(w => w.id === id);
-      if (word && word.isFavorite !== value) {
-        toggleFavorite(id);
-      }
-    }
-    setSelectedIds(new Set());
-    onRefresh();
-  };
-
-  // 当筛选变化时清除选中
   const handleFilterChange = (f: FilterOptions) => {
     setSelectedIds(new Set());
     onFilterChange(f);
@@ -271,12 +258,22 @@ export default function WordList({ words, filter, onFilterChange, onRefresh }: W
           全选
         </label>
         <span className="batch-info">已选 {selectedIds.size} 项</span>
-        <button className="btn btn-small" onClick={() => batchFavorite(true)}>
-          ★ 批量收藏
-        </button>
-        <button className="btn btn-small" onClick={() => batchFavorite(false)}>
-          ☆ 取消收藏
-        </button>
+        {(() => {
+          const hasFav = filtered.some(w => selectedIds.has(w.id) && w.isFavorite);
+          return (
+            <button className="btn btn-small" onClick={() => {
+              for (const id of selectedIds) {
+                const w = words.find(x => x.id === id);
+                if (hasFav) { if (w && w.isFavorite) toggleFavorite(id); }
+                else { if (w && !w.isFavorite) toggleFavorite(id); }
+              }
+              setSelectedIds(new Set());
+              onRefresh();
+            }}>
+              {hasFav ? '☆ 取消收藏' : '★ 全部收藏'}
+            </button>
+          );
+        })()}
         <button className="btn btn-small btn-danger" onClick={batchDelete}>
           🗑 批量删除
         </button>

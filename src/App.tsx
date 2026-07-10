@@ -20,8 +20,13 @@ const defaultFilter: FilterOptions = {
 
 function getInitialTheme(): ThemeMode {
   const saved = localStorage.getItem('kun-vocab-theme');
-  if (saved === 'dark' || saved === 'light') return saved;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  if (saved === 'dark' || saved === 'light' || saved === 'system') return saved;
+  return 'system';
+}
+
+function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
+  if (mode === 'system') return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return mode;
 }
 
 function App() {
@@ -39,13 +44,19 @@ function App() {
   }, [refresh]);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', resolveTheme(theme));
     localStorage.setItem('kun-vocab-theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
+  // Listen for system scheme changes
+  useEffect(() => {
+    if (theme !== 'system') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = () => document.documentElement.setAttribute('data-theme', resolveTheme('system'));
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [theme]);
+
 
   return (
     <div className="app">
@@ -77,15 +88,22 @@ function App() {
             className={`nav-btn ${tab === 'settings' ? 'active' : ''}`}
             onClick={() => setTab('settings')}
           >
-            🤖 AI设置
+            AI 设置
           </button>
-          <button
-            className="theme-toggle"
-            onClick={toggleTheme}
-            title={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
+          <div className="theme-wrapper">
+            <button
+              className="theme-toggle"
+              onClick={() => setTheme(prev => prev === 'light' ? 'dark' : prev === 'dark' ? 'system' : 'light')}
+              title="切换主题"
+            >
+              {theme === 'light' ? '🌙' : theme === 'dark' ? '☀️' : '🌓'}
+            </button>
+            <div className="theme-dropdown">
+              <button className={`theme-opt ${theme === 'light' ? 'active' : ''}`} onClick={() => setTheme('light')}>☀️ 浅色</button>
+              <button className={`theme-opt ${theme === 'dark' ? 'active' : ''}`} onClick={() => setTheme('dark')}>🌙 深色</button>
+              <button className={`theme-opt ${theme === 'system' ? 'active' : ''}`} onClick={() => setTheme('system')}>🌓 跟随系统</button>
+            </div>
+          </div>
         </nav>
       </header>
 

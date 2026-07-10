@@ -55,7 +55,7 @@ export async function aiAnalyzeWord(word: string): Promise<AiTranslateResult> {
       },
       { role: 'user', content: word },
     ],
-    temperature: 0.1,
+    temperature: 0.01,
     max_tokens: 300,
   };
 

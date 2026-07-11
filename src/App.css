@@ -136,6 +136,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans S
 
 .field-hint{display:block;font-size:.78rem;color:var(--text-secondary);margin-top:3px;font-weight:400}
 
+.chat-setting-checkbox{display:flex!important;align-items:center;gap:10px;padding:12px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);margin-bottom:16px;flex-direction:row!important}
+.chat-setting-checkbox:hover{border-color:var(--primary-border);background:var(--surface-hover)}
+.chat-setting-checkbox input{width:18px;height:18px;accent-color:var(--primary);cursor:pointer;margin:0!important}
+.chat-setting-checkbox .checkbox-text{font-size:.88rem;font-weight:500;color:var(--text)}
+
 /* ===== POS Selector ===== */
 .pos-selector{margin-bottom:16px}
 .pos-label{display:block;font-size:.88rem;font-weight:600;color:var(--text);margin-bottom:6px}
@@ -203,6 +208,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans S
 
 
 /* ===== Fullscreen Button ===== */
+.chat-fab{position:fixed;bottom:24px;right:76px;z-index:999;width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);font-size:1.3rem;cursor:pointer;box-shadow:var(--shadow-lg);display:flex;align-items:center;justify-content:center;transition:var(--transition);padding:0;line-height:1}
+.chat-fab:hover{background:var(--surface-hover);color:var(--text);border-color:var(--primary-border);transform:scale(1.08)}
 .fullscreen-btn{position:fixed;bottom:24px;right:24px;z-index:999;width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);font-size:1.3rem;cursor:pointer;box-shadow:var(--shadow-lg);display:flex;align-items:center;justify-content:center;transition:var(--transition);padding:0;line-height:1}
 .fullscreen-btn:hover{background:var(--surface-hover);color:var(--text);border-color:var(--primary-border);transform:scale(1.08)}
 
@@ -210,6 +217,58 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans S
 .word-title-group{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .word-phonetic{font-size:.82rem;color:var(--text-secondary);font-family:"Merriweather","Georgia","Times New Roman",serif}
 .study-phonetic{font-size:1rem;color:var(--text-secondary);font-family:"Merriweather","Georgia","Times New Roman",serif;display:block;margin-top:-8px}
+
+
+/* ===== Chat View ===== */
+.chat-view{display:flex;flex-direction:column;height:calc(100vh - 160px);max-width:800px;margin:0 auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.chat-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--header-bg)}
+.chat-header h2{font-size:1.1rem;font-weight:700;margin:0}
+.chat-messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px}
+.chat-empty{text-align:center;padding:60px 20px;color:var(--text-secondary)}
+.chat-empty-icon{font-size:3rem;margin-bottom:12px}
+.chat-empty-title{font-size:1.2rem;font-weight:600;margin-bottom:6px}
+.chat-empty-hint{font-size:.88rem;opacity:.7}
+
+/* Message */
+.chat-msg{display:flex;gap:12px;animation:msgFade .25s ease}
+@keyframes msgFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.msg-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;background:var(--surface-hover);border:1px solid var(--border)}
+.msg-body{flex:1;min-width:0}
+.msg-label{font-size:.78rem;font-weight:600;color:var(--text-secondary);margin-bottom:4px}
+.msg-content{font-size:.92rem;line-height:1.6;color:var(--text);white-space:pre-wrap;word-break:break-word}
+.msg-user .msg-content{color:var(--text)}
+.msg-assistant .msg-body{background:var(--surface);padding:10px 16px;border-radius:var(--radius-sm);border:1px solid var(--border)}
+.msg-user .msg-body{padding:10px 0}
+
+/* Thinking animation */
+.thinking-dots{display:flex;gap:4px;padding:4px 0;font-size:1.5rem;color:var(--primary)}
+.thinking-dots span{animation:dotPulse 1.4s infinite}
+.thinking-dots span:nth-child(2){animation-delay:.2s}
+.thinking-dots span:nth-child(3){animation-delay:.4s}
+@keyframes dotPulse{0%,80%,100%{opacity:.3}40%{opacity:1}}
+
+/* Vocab Card */
+.vocab-card{margin-top:12px;border:1px solid var(--primary-border);border-radius:var(--radius-sm);overflow:hidden;background:var(--primary-light);animation:vocabSlide .25s ease}
+@keyframes vocabSlide{from{opacity:0;max-height:0}to{opacity:1;max-height:400px}}
+.vocab-card-header{padding:8px 12px;font-size:.82rem;font-weight:600;color:var(--primary);border-bottom:1px solid var(--border);background:var(--surface)}
+.vocab-card-list{display:flex;flex-direction:column}
+.vocab-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;transition:background .15s;border-bottom:1px solid rgba(0,0,0,.04)}
+.vocab-item:last-child{border-bottom:none}
+.vocab-item:hover{background:var(--surface-hover)}
+.vocab-item.checked{background:#fef3c7}
+[data-theme="dark"] .vocab-item.checked{background:#422006}
+.vocab-item input{accent-color:var(--primary);cursor:pointer;width:16px;height:16px;flex-shrink:0}
+.vi-word{font-weight:600;font-family:"Merriweather","Georgia",serif;font-size:.9rem;min-width:80px}
+.vi-phonetic{font-size:.78rem;color:var(--text-secondary);font-family:"Merriweather","Georgia",serif;min-width:70px}
+.vi-pos{font-size:.75rem;color:var(--primary);padding:1px 6px;border-radius:8px;background:var(--primary-light);min-width:40px;text-align:center}
+.vi-meaning{font-size:.85rem;color:var(--text);flex:1;text-align:right}
+.vocab-card .btn{margin:8px 12px}
+
+/* Input area */
+.chat-input-area{display:flex;gap:10px;padding:12px 20px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.chat-input-area textarea{flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.9rem;resize:none;outline:none;background:var(--surface);color:var(--text);font-family:inherit;line-height:1.5;transition:var(--transition)}
+.chat-input-area textarea:focus{border-color:var(--primary);box-shadow:var(--amber-glow)}
+.send-btn{padding:10px 24px;align-self:flex-end;font-size:.95rem}
 
 /* ===== Study View ===== */
 .study-view{max-width:680px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:20px;outline:none;min-height:60vh}

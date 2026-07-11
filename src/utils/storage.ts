@@ -1,4 +1,4 @@
-import type { VocabWord, VocabExport, Sentence, AiSettings, AiStats, Notebook } from '../types/vocab';
+import type { VocabWord, VocabExport, Sentence, AiSettings, AiStats, Notebook, ChatMessage } from '../types/vocab';
 import { DEFAULT_AI_SETTINGS, DEFAULT_AI_STATS } from '../types/vocab';
 
 const NOTEBOOKS_KEY = 'kun-vocab-notebooks';
@@ -6,6 +6,8 @@ const CURRENT_KEY = 'kun-vocab-current-notebook';
 const OLD_WORDS_KEY = 'kun-vocab-words';
 const AI_SETTINGS_KEY = 'kun-vocab-ai-settings';
 const AI_STATS_KEY = 'kun-vocab-ai-stats';
+const CHAT_HISTORY_KEY = 'kun-vocab-chat-history';
+const CHAT_DRAFT_KEY = 'kun-vocab-chat-draft';
 
 function wordsKey(id: string) { return `kun-vocab-words-${id}`; }
 
@@ -225,4 +227,27 @@ export function saveAiStats(stats: AiStats): void {
 
 export function resetAiStats(): void {
   localStorage.removeItem(AI_STATS_KEY);
+}
+
+// ---------- Chat ----------
+
+export function loadChatHistory(): ChatMessage[] {
+  try { const r = localStorage.getItem(CHAT_HISTORY_KEY); return r ? JSON.parse(r) : []; }
+  catch { return []; }
+}
+
+export function saveChatHistory(msgs: ChatMessage[]): void {
+  localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(msgs));
+}
+
+export function clearChatHistory(): void {
+  localStorage.removeItem(CHAT_HISTORY_KEY);
+}
+
+export function loadChatDraft(): string {
+  return localStorage.getItem(CHAT_DRAFT_KEY) || '';
+}
+
+export function saveChatDraft(text: string): void {
+  localStorage.setItem(CHAT_DRAFT_KEY, text);
 }

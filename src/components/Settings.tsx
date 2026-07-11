@@ -8,6 +8,7 @@ interface SettingsProps {
 
 export default function Settings({ onClose }: SettingsProps) {
   const saved = loadAiSettings();
+  const [chatModel, setChatModel] = useState(saved.chatModel || saved.model);
   const [host, setHost] = useState(saved.host);
   const [apiKey, setApiKey] = useState(saved.apiKey);
   const [model, setModel] = useState(saved.model);
@@ -23,7 +24,7 @@ export default function Settings({ onClose }: SettingsProps) {
     if (!trimmedKey) { setMessage({ type: 'error', text: '请输入 API Key' }); return; }
     if (!trimmedModel) { setMessage({ type: 'error', text: '请输入模型名称' }); return; }
 
-    saveAiSettings({ host: trimmedHost.replace(/\/+$/, ''), apiKey: trimmedKey, model: trimmedModel });
+    saveAiSettings({ host: trimmedHost.replace(/\/+$/, ''), apiKey: trimmedKey, model: trimmedModel, chatModel: chatModel.trim() || trimmedModel });
     setMessage({ type: 'success', text: '设置已保存' });
     setTimeout(() => onClose?.(), 1200);
   };
@@ -62,7 +63,9 @@ export default function Settings({ onClose }: SettingsProps) {
       <label>API Key<input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="sk-..." /></label>
       <label>Model<input type="text" value={model} onChange={e => setModel(e.target.value)} placeholder="gpt-4o-mini" /><span className="field-hint">例如：gpt-4o-mini, deepseek-chat, qwen-plus 等</span></label>
 
-      <div className="form-actions">
+      <label>对话模型（留空则与上方相同）<input type="text" value={chatModel} onChange={e => setChatModel(e.target.value)} placeholder={saved.model || "gpt-4o-mini"} /><span className="field-hint">AI 对话使用的模型，可与单词分析不同。</span></label>
+
+            <div className="form-actions">
         <button type="button" className="btn" onClick={handleTest}>🔌 测试连接</button>
         <button type="button" className="btn btn-primary" onClick={handleSave}>💾 保存设置</button>
       </div>

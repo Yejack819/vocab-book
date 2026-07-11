@@ -94,3 +94,19 @@ export interface Notebook {
   name: string;
   createdAt: number;
 }
+
+/** 聊天消息 */
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  vocabJson?: string;
+  timestamp: number;
+}
+
+/** AI 设置扩展 */
+export interface AiSettings {
+  host: string;
+  apiKey: string;
+  model: string;
+  chatModel?: string;
+}

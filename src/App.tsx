@@ -6,9 +6,10 @@ import ImportExport from './components/ImportExport';
 import Settings from './components/Settings';
 import StudyView from './components/StudyView';
 import FullscreenButton from './components/FullscreenButton';
+import ChatView from './components/ChatView';
 import './App.css';
 
-type Tab = 'list' | 'study' | 'manage' | 'settings';
+type Tab = 'list' | 'study' | 'manage' | 'settings' | 'chat';
 
 const defaultFilter: FilterOptions = {
   search: '',
@@ -31,6 +32,7 @@ function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
 
 function App() {
   const [tab, setTab] = useState<Tab>('list');
+  const [prevTab, setPrevTab] = useState<Tab>('list');
   const [notebooks, setNotebooks] = useState<Notebook[]>(() => loadNotebooks());
   const [currentNbId, setCurrentNbId] = useState<string>(() => getCurrentNotebookId());
   const [words, setWords] = useState(() => loadWords());
@@ -59,6 +61,15 @@ function App() {
     return () => mq.removeEventListener('change', handler);
   }, [theme]);
 
+  const goToTab = (t: Tab) => {
+    if (t === 'chat' && tab === 'chat') {
+      setTab(prevTab === 'chat' ? 'list' : prevTab);
+      return;
+    }
+    setPrevTab(tab);
+    setTab(t);
+  };
+
   const switchNotebook = (id: string) => {
     setCurrentNotebookId(id);
     setCurrentNbId(id);
@@ -79,10 +90,10 @@ function App() {
           </div>
         </div>
         <nav className="app-nav">
-          <button className={`nav-btn ${tab === 'list' ? 'active' : ''}`} onClick={() => setTab('list')}>📖 单词</button>
-          <button className={`nav-btn ${tab === 'study' ? 'active' : ''}`} onClick={() => setTab('study')}>🧠 学习</button>
-          <button className={`nav-btn ${tab === 'manage' ? 'active' : ''}`} onClick={() => setTab('manage')}>📦 数据</button>
-          <button className={`nav-btn ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>AI 设置</button>
+          <button className={`nav-btn ${tab === 'list' ? 'active' : ''}`} onClick={() => goToTab('list')}>📖 单词</button>
+          <button className={`nav-btn ${tab === 'study' ? 'active' : ''}`} onClick={() => goToTab('study')}>🧠 学习</button>
+          <button className={`nav-btn ${tab === 'manage' ? 'active' : ''}`} onClick={() => goToTab('manage')}>📦 数据</button>
+          <button className={`nav-btn ${tab === 'settings' ? 'active' : ''}`} onClick={() => goToTab('settings')}>AI 设置</button>
           <div className="theme-wrapper">
             <button className="theme-toggle" onClick={() => setTheme(prev => prev === 'light' ? 'dark' : prev === 'dark' ? 'system' : 'light')} title="切换主题">
               {theme === 'light' ? '🌙' : theme === 'dark' ? '☀️' : '🌓'}
@@ -103,11 +114,13 @@ function App() {
         </div>
         <div className="tab-page" data-active={tab === 'settings'}><Settings onClose={() => setTab('list')} /></div>
         <div className="tab-page" data-active={tab === 'study'}><StudyView words={words} filter={filter} onRefresh={refresh} /></div>
+        <div className="tab-page" data-active={tab === 'chat'}><ChatView onRefresh={refresh} /></div>
       </main>
 
       <footer className="app-footer">
         <p>数据完全存储在浏览器 localStorage 中，关闭页面不会丢失。</p>
       </footer>
+      <button className="chat-fab" onClick={() => goToTab('chat')} title="AI 助手">{tab === 'chat' ? '←' : 'AI'}</button>
       <FullscreenButton />
     </div>
   );

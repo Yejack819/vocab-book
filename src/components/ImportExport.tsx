@@ -20,6 +20,10 @@ export default function ImportExport({ onRefresh, currentNb, notebooks, onSwitch
   const [showCsvDialog, setShowCsvDialog] = useState(false);
   const [csvSortBy, setCsvSortBy] = useState<CsvSortBy>('createdAt');
   const [csvSortOrder, setCsvSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [showStorage, setShowStorage] = useState(false);
+  const [storageItems, setStorageItems] = useState<Array<{key:string;size:number;pct:number}>>([]);
+  const [storageTotal, setStorageTotal] = useState(0);
+  const storageLimit = 5 * 1024 * 1024;
   const stats = getStats();
 
   const showMsg = (type: 'success' | 'error' | 'info', text: string) => {
@@ -48,7 +52,7 @@ export default function ImportExport({ onRefresh, currentNb, notebooks, onSwitch
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `vocab-export-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.json`;
+    a.href = url; a.download = `vocab-export-${new Date().toISOString().replace(/[:-]/g,"").slice(0,14)}.json`;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
@@ -70,15 +74,15 @@ export default function ImportExport({ onRefresh, currentNb, notebooks, onSwitch
 
   const doExportCsv = () => {
     const csvRows = csvPreview.all;
-    let csv = '\uFEFF英文单词,音标,词性,释义,例句,例句翻译\n';
+    let csv = '\uFEFF英文单词,音标,词性,释义,例句,例句翻译,是否收藏\n';
     for (const w of csvRows) {
       const esc = (s: string) => `"${(s || '').replace(/"/g, '""')}"`;
-      csv += [esc(w.word), esc(w.phonetic || ''), esc((w.partOfSpeech || []).join('; ')), esc(w.meaning), esc(w.sentences.map(s => s.english).join(' | ')), esc(w.sentences.map(s => s.chinese).join(' | '))].join(',') + '\n';
+      csv += [esc(w.word), esc(w.phonetic || ''), esc((w.partOfSpeech || []).join('; ')), esc(w.meaning), esc(w.sentences.map(s => s.english).join(' | ')), esc(w.sentences.map(s => s.chinese).join(' | ')), w.isFavorite ? '✓' : ''].join(',') + '\n';
     }
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `vocab-export-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.csv`;
+    a.href = url; a.download = `${currentNb.name}-${new Date().toISOString().replace(/[:-]/g,"").slice(0,14)}.csv`;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
@@ -193,6 +197,30 @@ export default function ImportExport({ onRefresh, currentNb, notebooks, onSwitch
           }}>📥 加载示例数据</button>
         </div>
 
+        <div className="action-group">
+          <h3>💾 本地存储</h3>
+          <p className="action-desc">查看 localStorage 各项数据占用</p>
+          <button className="btn" onClick={() => {
+            const items:{key:string;size:number;pct:number}[] = [];
+            let total = 0;
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i);
+              if (k) {
+                const v = localStorage.getItem(k) || '';
+                const size = new Blob([k + v]).size;
+                total += size;
+                items.push({key:k, size, pct: 0});
+              }
+            }
+            items.sort((a,b) => b.size - a.size);
+            const limit = storageLimit;
+            items.forEach(item => item.pct = Math.round(item.size / limit * 1000) / 10);
+            setStorageItems(items);
+            setStorageTotal(total);
+            setShowStorage(true);
+          }}>📊 查看存储详情</button>
+        </div>
+
         <div className="action-group danger">
           <h3>危险操作</h3>
           <p className="action-desc">清除所有单词本、单词、AI 设置和统计，恢复出厂状态。</p>
@@ -210,12 +238,48 @@ export default function ImportExport({ onRefresh, currentNb, notebooks, onSwitch
               <button className="sort-order-btn" onClick={() => setCsvSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>{csvSortOrder === 'asc' ? '↑ 升序' : '↓ 降序'}</button>
               <span className="csv-modal-count">共 {csvPreview.total} 条</span>
             </div>
-            <table className="csv-preview-table"><thead><tr><th>英文单词</th><th>音标</th><th>词性</th><th>释义</th><th>例句</th><th>例句翻译</th></tr></thead>
-              <tbody>{csvPreview.rows.length === 0 ? <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 16 }}>无数据</td></tr> : csvPreview.rows.map((w, i) => (<tr key={i}><td>{w.word}</td><td style={{ fontFamily: '"Merriweather","Georgia",serif' }}>{w.phonetic || '-'}</td><td>{(w.partOfSpeech || []).join('; ')}</td><td>{w.meaning}</td><td>{w.sentences.map(s => s.english).join(' | ')}</td><td>{w.sentences.map(s => s.chinese).join(' | ')}</td></tr>))}</tbody>
+            <table className="csv-preview-table"><thead><tr><th>英文单词</th><th>音标</th><th>词性</th><th>释义</th><th>例句</th><th>例句翻译</th><th>是否收藏</th></tr></thead>
+              <tbody>{csvPreview.rows.length === 0 ? <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 16 }}>无数据</td></tr> : csvPreview.rows.map((w, i) => (<tr key={i}><td>{w.word}</td><td style={{ fontFamily: '"Merriweather","Georgia",serif' }}>{w.phonetic || '-'}</td><td>{(w.partOfSpeech || []).join('; ')}</td><td>{w.meaning}</td><td>{w.sentences.map(s => s.english).join(' | ')}</td><td>{w.sentences.map(s => s.chinese).join(' | ')}</td><td>{w.isFavorite ? '✓' : ''}</td></tr>))}</tbody>
             </table>
             <div className="form-actions">
               <button className="btn" onClick={() => setShowCsvDialog(false)}>取消</button>
               <button className="btn btn-primary" onClick={doExportCsv}>💾 确认导出 ({csvPreview.total} 条)</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Storage modal */}
+      {showStorage && (
+        <div className="modal-overlay" onClick={() => setShowStorage(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth:500}}>
+            <h2>💾 本地存储</h2>
+            <p className="action-desc" style={{marginBottom:12}}>
+              已用 {(storageTotal / 1024).toFixed(1)} KB / 上限 5 MB
+              （{(storageTotal / (5*1024*1024) * 100).toFixed(1)}%）
+            </p>
+            {storageItems.length === 0 && <p style={{color:'var(--text-secondary)'}}>无数据</p>}
+            {storageItems.length > 0 && (
+              <div style={{display:'flex',flexDirection:'column',gap:4,maxHeight:300,overflowY:'auto'}}>
+                {storageItems.map((item, i) => (
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:8,fontSize:'.85rem',padding:'4px 8px',borderRadius:4,background:item.key.startsWith('kun-vocab-')?'var(--primary-light)':'transparent'}}>
+                    <span style={{flex:1,wordBreak:'break-all'}}>{item.key}</span>
+                    <span style={{color:'var(--text-secondary)',whiteSpace:'nowrap'}}>{(item.size / 1024).toFixed(1)} KB</span>
+                    <span style={{color:'var(--text-secondary)',width:40,textAlign:'right'}}>{item.pct}%</span>
+                    <button className="icon-btn danger" style={{fontSize:'.8rem'}} onClick={() => {
+                      if (window.confirm('确定要删除 ' + item.key + ' 吗？')) {
+                        localStorage.removeItem(item.key);
+                        setStorageItems(prev => prev.filter(x => x.key !== item.key));
+                        setStorageTotal(prev => prev - item.size);
+                      }
+                    }}>🗑️</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="form-actions" style={{marginTop:12}}>
+              <span style={{fontSize:'.78rem',color:'var(--text-secondary)'}}>浏览器：{navigator.userAgent.includes('Chrome')?'Chromium内核':navigator.userAgent.includes('Safari')?'Safari':'未知'} · 建议上限 5MB</span>
+              <button className="btn" onClick={() => setShowStorage(false)}>关闭</button>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState } from 'react';
 
 const SLIDES = [
   { title: '👋 你好！', text: '欢迎使用 Vocab Keeper（英语单词本），一个优雅的英语单词管理、学习与 AI 对话工具。' },
@@ -14,13 +14,6 @@ const SLIDES = [
 export default function WelcomeCard({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState(0);
   const s = SLIDES[step];
-
-  useEffect(() => {
-    if (step > 0 && step < SLIDES.length - 1) {
-      const t = setTimeout(() => setStep(prev => prev + 1), 8000);
-      return () => clearTimeout(t);
-    }
-  }, [step]);
 
   const next = () => { if (step < SLIDES.length - 1) setStep(prev => prev + 1); };
   const prev = () => { if (step > 0) setStep(prev => prev - 1); };

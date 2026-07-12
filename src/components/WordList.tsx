@@ -162,7 +162,7 @@ export default function WordList({ words, filter, onFilterChange, onRefresh }: W
 
   const doBatchCsv = () => {
     const csvRows = batchCsvPreview.all;
-    let csv = '\uFEFF英文单词,音标,词性,释义,例句,例句翻译\n';
+    let csv = '\uFEFF英文单词,音标,词性,释义,例句,例句翻译,是否收藏\n';
     for (const w of csvRows) {
       const esc = (s: string) => `"${(s || '').replace(/"/g, '""')}"`;
       csv += [esc(w.word), esc(w.phonetic || ''), esc((w.partOfSpeech || []).join('; ')), esc(w.meaning), esc(w.sentences.map(s => s.english).join(' | ')), esc(w.sentences.map(s => s.chinese).join(' | '))].join(',') + '\n';

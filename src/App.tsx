@@ -9,7 +9,7 @@ import FullscreenButton from './components/FullscreenButton';
 import ChatView from './components/ChatView';
 import './App.css';
 
-type Tab = 'list' | 'study' | 'manage' | 'settings' | 'chat';
+type Tab = 'list' | 'study' | 'manage' | 'settings';
 
 const defaultFilter: FilterOptions = {
   search: '',
@@ -32,7 +32,7 @@ function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
 
 function App() {
   const [tab, setTab] = useState<Tab>('list');
-  const [prevTab, setPrevTab] = useState<Tab>('list');
+    const [showChat, setShowChat] = useState(false);
   const [notebooks, setNotebooks] = useState<Notebook[]>(() => loadNotebooks());
   const [currentNbId, setCurrentNbId] = useState<string>(() => getCurrentNotebookId());
   const [words, setWords] = useState(() => loadWords());
@@ -62,11 +62,6 @@ function App() {
   }, [theme]);
 
   const goToTab = (t: Tab) => {
-    if (t === 'chat' && tab === 'chat') {
-      setTab(prevTab === 'chat' ? 'list' : prevTab);
-      return;
-    }
-    setPrevTab(tab);
     setTab(t);
   };
 
@@ -114,13 +109,13 @@ function App() {
         </div>
         <div className="tab-page" data-active={tab === 'settings'}><Settings onClose={() => setTab('list')} /></div>
         <div className="tab-page" data-active={tab === 'study'}><StudyView words={words} filter={filter} onRefresh={refresh} /></div>
-        <div className="tab-page" data-active={tab === 'chat'}><ChatView onRefresh={refresh} /></div>
       </main>
 
       <footer className="app-footer">
         <p>数据完全存储在浏览器 localStorage 中，关闭页面不会丢失。</p>
       </footer>
-      <button className="chat-fab" onClick={() => goToTab('chat')} title="AI 助手">{tab === 'chat' ? '←' : 'AI'}</button>
+      {showChat && <div className="modal-overlay" onClick={() => setShowChat(false)}><div className="chat-modal" onClick={e => e.stopPropagation()}><ChatView /></div></div>}
+      <button className="chat-fab" onClick={() => setShowChat(prev => !prev)} title="AI 助手">{showChat ? '←' : 'AI'}</button>
       <FullscreenButton />
     </div>
   );

@@ -103,6 +103,14 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+/** 聊天会话 */
+export interface ChatSession {
+  id: string;
+  name: string;
+  messages: ChatMessage[];
+  createdAt: number;
+}
+
 /** AI 设置扩展 */
 export interface AiSettings {
   host: string;

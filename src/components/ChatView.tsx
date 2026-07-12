@@ -1,11 +1,15 @@
-import { useState, useRef, useEffect } from 'react';
-import type { ChatMessage } from '../types/vocab';
-import { loadChatHistory, saveChatHistory, clearChatHistory, loadChatDraft, saveChatDraft, loadAiSettings, addWord } from '../utils/storage';
+﻿import { useState, useRef, useEffect } from 'react';
+import type { ChatMessage, ChatSession } from '../types/vocab';
+import { loadSessions, saveSessions, getCurrentSessionId, setCurrentSessionId, loadChatDraft, saveChatDraft, loadAiSettings, addWord } from '../utils/storage';
 import { chatCompletion } from '../utils/ai';
 import { renderMarkdown } from '../utils/markdown';
 
-export default function ChatView({ onRefresh }: { onRefresh?: () => void }) {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => loadChatHistory());
+function genId() { return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+export default function ChatView() {
+  const [sessions, setSessions] = useState<ChatSession[]>(() => loadSessions());
+  const [currentId, setCurrentId] = useState(() => getCurrentSessionId());
+  const [showList, setShowList] = useState(false);
   const [input, setInput] = useState(() => loadChatDraft());
   const [sending, setSending] = useState(false);
   const [selectedWords, setSelectedWords] = useState<Set<number>>(new Set());
@@ -13,8 +17,62 @@ export default function ChatView({ onRefresh }: { onRefresh?: () => void }) {
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const current = sessions.find(s => s.id === currentId);
+  const messages = current?.messages || [];
+
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
   useEffect(() => { saveChatDraft(input); }, [input]);
+
+  const persist = (list: ChatSession[], cid: string) => {
+    saveSessions(list);
+    setCurrentSessionId(cid);
+  };
+
+  const ensureSession = () => {
+    let list = [...sessions];
+    let cid = currentId;
+    if (!list.find(s => s.id === cid)) {
+      const nb: ChatSession = { id: genId(), name: '对话 ' + (list.length + 1), messages: [], createdAt: Date.now() };
+      list.push(nb);
+      cid = nb.id;
+    }
+    return { list, cid };
+  };
+
+  const switchSession = (id: string) => {
+    setCurrentId(id);
+    setCurrentSessionId(id);
+    setShowList(false);
+    setSelectedWords(new Set());
+    setInput('');
+  };
+
+  const newSession = () => {
+    const nb: ChatSession = { id: genId(), name: '对话 ' + (sessions.length + 1), messages: [], createdAt: Date.now() };
+    const list = [...sessions, nb];
+    setSessions(list);
+    setCurrentId(nb.id);
+    persist(list, nb.id);
+    setInput('');
+  };
+
+  const deleteSession = (id: string) => {
+    if (sessions.length <= 1) return;
+    const list = sessions.filter(s => s.id !== id);
+    const nextId = id === currentId ? list[0].id : currentId;
+    setSessions(list);
+    setCurrentId(nextId);
+    persist(list, nextId);
+  };
+
+  const renameSession = (id: string) => {
+    const name = prompt('重命名会话：', sessions.find(s => s.id === id)?.name);
+    if (name && name.trim()) {
+      const list = sessions.map(s => s.id === id ? { ...s, name: name.trim() } : s);
+      setSessions(list);
+      saveSessions(list);
+    }
+  };
 
   const showToast = (text: string) => { setToast(text); setTimeout(() => setToast(null), 3000); };
 
@@ -22,23 +80,31 @@ export default function ChatView({ onRefresh }: { onRefresh?: () => void }) {
     const text = input.trim();
     if (!text || sending) return;
     setInput('');
+
+    const { list: slist, cid } = ensureSession();
+    const idx = slist.findIndex(s => s.id === cid);
     const userMsg: ChatMessage = { role: 'user', content: text, timestamp: Date.now() };
-    const updated = [...messages, userMsg];
-    setMessages(updated);
-    saveChatHistory(updated);
+    const updatedMsgs = [...(slist[idx]?.messages || []), userMsg];
+    slist[idx] = { ...slist[idx], messages: updatedMsgs };
+    setSessions(slist);
+    persist(slist, cid);
     setSending(true);
 
     try {
       const settings = loadAiSettings();
       if (!settings.host || !settings.apiKey) throw new Error('请先在「设置」中配置 AI Host 和 API Key');
-      const result = await chatCompletion(updated.map(m => ({ role: m.role, content: m.content })), settings);
-      const final = [...updated, { role: 'assistant' as const, content: result.content, vocabJson: result.vocabJson, timestamp: Date.now() }];
-      setMessages(final);
-      saveChatHistory(final);
+      const result = await chatCompletion(updatedMsgs.map(m => ({ role: m.role, content: m.content })), settings);
+      const assistantMsg: ChatMessage = { role: 'assistant', content: result.content, vocabJson: result.vocabJson, timestamp: Date.now() };
+      const finalMsgs = [...updatedMsgs, assistantMsg];
+      slist[idx] = { ...slist[idx], messages: finalMsgs };
+      setSessions([...slist]);
+      saveSessions(slist);
     } catch (err: any) {
-      const final = [...updated, { role: 'assistant' as const, content: '❌ ' + err.message, timestamp: Date.now() }];
-      setMessages(final);
-      saveChatHistory(final);
+      const errMsg: ChatMessage = { role: 'assistant', content: '❌ ' + err.message, timestamp: Date.now() };
+      const finalMsgs = [...updatedMsgs, errMsg];
+      slist[idx] = { ...slist[idx], messages: finalMsgs };
+      setSessions([...slist]);
+      saveSessions(slist);
     } finally { setSending(false); }
   };
 
@@ -46,40 +112,52 @@ export default function ChatView({ onRefresh }: { onRefresh?: () => void }) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  const handleClear = () => {
-    if (window.confirm('确定清除所有对话记录吗？')) { setMessages([]); clearChatHistory(); }
-  };
-
   const handleAddWords = (msgIndex: number) => {
-    const msg = messages[msgIndex];
-    if (!msg.vocabJson) return;
+    if (!current) return;
+    const msg = current.messages[msgIndex];
+    if (!msg?.vocabJson) return;
     try {
       const parsed = JSON.parse(msg.vocabJson);
       if (!parsed.words || !Array.isArray(parsed.words)) return;
       let count = 0;
       parsed.words.forEach((w: any, wi: number) => {
         if (selectedWords.has(wi)) {
-          const pos = Array.isArray(w.partOfSpeech) ? w.partOfSpeech : (typeof w.partOfSpeech === 'string' ? [w.partOfSpeech] : []);
-          addWord(w.word || '', w.meaning || '', pos, Array.isArray(w.sentences) ? w.sentences : [], w.phonetic || '');
+          addWord(w.word || '', w.meaning || '', Array.isArray(w.partOfSpeech) ? w.partOfSpeech : (typeof w.partOfSpeech === 'string' ? [w.partOfSpeech] : []), Array.isArray(w.sentences) ? w.sentences : [], w.phonetic || '');
           count++;
         }
       });
       setSelectedWords(new Set());
-      showToast(`成功添加 ${count} 个单词到当前单词本`);
-      onRefresh?.();
+      showToast('成功添加 ' + count + ' 个单词到当前单词本');
     } catch {}
   };
 
   const toggleWord = (idx: number) => {
-    setSelectedWords(prev => { const next = new Set(prev); if (next.has(idx)) next.delete(idx); else next.add(idx); return next; });
+    setSelectedWords(prev => { const n = new Set(prev); if (n.has(idx)) n.delete(idx); else n.add(idx); return n; });
   };
 
   return (
-    <div className="chat-view">
+    <div className="chat-view" onClick={e => e.stopPropagation()}>
       <div className="chat-header">
-        <h2>💬 AI 对话</h2>
-        <button className="btn btn-small" onClick={handleClear}>🗑️ 清空记录</button>
+        <div className="chat-header-left">
+          <button className="btn btn-small" onClick={() => setShowList(!showList)} title="会话列表">☰</button>
+          <h2>{current?.name || 'AI 对话'}</h2>
+        </div>
+        <button className="btn btn-small" onClick={newSession}>＋ 新建</button>
       </div>
+
+      {showList && (
+        <div className="chat-session-list">
+          {sessions.map(s => (
+            <div key={s.id} className={`session-item ${s.id === currentId ? 'active' : ''}`}>
+              <span className="session-name" onClick={() => switchSession(s.id)}>{s.name}</span>
+              <div className="session-actions">
+                <button className="icon-btn" onClick={() => renameSession(s.id)} title="重命名">✏️</button>
+                {sessions.length > 1 && <button className="icon-btn danger" onClick={() => deleteSession(s.id)} title="删除">🗑️</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="chat-messages">
         {messages.length === 0 && (
@@ -90,32 +168,28 @@ export default function ChatView({ onRefresh }: { onRefresh?: () => void }) {
           </div>
         )}
         {messages.map((msg, i) => (
-          <div key={i} className={`chat-msg ${msg.role === 'user' ? 'msg-user' : 'msg-assistant'}`}>
+          <div key={i} className={'chat-msg ' + (msg.role === 'user' ? 'msg-user' : 'msg-assistant')}>
             <div className="msg-avatar">{msg.role === 'user' ? '👤' : '🤖'}</div>
             <div className="msg-body">
               <div className="msg-label">{msg.role === 'user' ? '你' : 'AI 助手'}</div>
-              <div className="msg-content" dangerouslySetInnerHTML={{__html:renderMarkdown(msg.content)}}></div>
+              <div className="msg-content" dangerouslySetInnerHTML={{__html: renderMarkdown(msg.content)}}></div>
               {msg.role === 'assistant' && msg.vocabJson && (() => {
-                try {
-                  const parsed = JSON.parse(msg.vocabJson);
-                  if (!parsed.words || !Array.isArray(parsed.words)) return null;
+                try { const p = JSON.parse(msg.vocabJson); if (!p.words || !Array.isArray(p.words)) return null;
                   return (
                     <div className="vocab-card">
                       <div className="vocab-card-header">📝 检测到英语单词</div>
                       <div className="vocab-card-list">
-                        {parsed.words.map((w: any, wi: number) => (
-                          <label key={wi} className={`vocab-item ${selectedWords.has(wi) ? 'checked' : ''}`}>
+                        {p.words.map((w: any, wi: number) => (
+                          <label key={wi} className={'vocab-item ' + (selectedWords.has(wi) ? 'checked' : '')}>
                             <input type="checkbox" checked={selectedWords.has(wi)} onChange={() => toggleWord(wi)} />
                             <span className="vi-word">{w.word}</span>
                             {w.phonetic && <span className="vi-phonetic">{w.phonetic}</span>}
-                            <span className="vi-pos">{(w.partOfSpeech||[]).slice(0, 2).join('/')}</span>
+                            <span className="vi-pos">{(w.partOfSpeech||[]).slice(0,2).join('/')}</span>
                             <span className="vi-meaning">{w.meaning}</span>
                           </label>
                         ))}
                       </div>
-                      <button className="btn btn-primary btn-small" onClick={() => handleAddWords(i)} disabled={selectedWords.size === 0}>
-                        ➕ 加入单词本 ({selectedWords.size})
-                      </button>
+                      <button className="btn btn-primary btn-small" onClick={() => handleAddWords(i)} disabled={selectedWords.size === 0}>➕ 加入单词本 ({selectedWords.size})</button>
                     </div>
                   );
                 } catch { return null; }

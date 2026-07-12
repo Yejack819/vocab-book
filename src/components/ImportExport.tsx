@@ -258,6 +258,9 @@ export default function ImportExport({ onRefresh, currentNb, notebooks, onSwitch
               已用 {(storageTotal / 1024).toFixed(1)} KB / 上限 5 MB
               （{(storageTotal / (5*1024*1024) * 100).toFixed(1)}%）
             </p>
+            <div style={{width:'100%',height:8,background:'var(--border)',borderRadius:4,overflow:'hidden',marginBottom:12}}>
+              <div style={{width:(storageTotal/(5*1024*1024)*100)+'%',height:'100%',background:'linear-gradient(90deg,var(--primary),var(--primary-border))',borderRadius:4,transition:'width .3s ease'}}></div>
+            </div>
             {storageItems.length === 0 && <p style={{color:'var(--text-secondary)'}}>无数据</p>}
             {storageItems.length > 0 && (
               <div style={{display:'flex',flexDirection:'column',gap:4,maxHeight:300,overflowY:'auto'}}>

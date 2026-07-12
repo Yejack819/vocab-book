@@ -1,12 +1,12 @@
 ﻿import { useState, useRef, useEffect } from 'react';
 import type { ChatMessage, ChatSession } from '../types/vocab';
 import { loadSessions, saveSessions, getCurrentSessionId, setCurrentSessionId, loadChatDraft, saveChatDraft, loadAiSettings, addWord } from '../utils/storage';
-import { chatCompletion } from '../utils/ai';
+import { chatCompletion, aiGenerateTitle } from '../utils/ai';
 import { renderMarkdown } from '../utils/markdown';
 
 function genId() { return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
-export default function ChatView() {
+export default function ChatView({ onRefresh }: { onRefresh?: () => void }) {
   const [sessions, setSessions] = useState<ChatSession[]>(() => loadSessions());
   const [currentId, setCurrentId] = useState(() => getCurrentSessionId());
   const [showList, setShowList] = useState(false);
@@ -22,6 +22,16 @@ export default function ChatView() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
   useEffect(() => { saveChatDraft(input); }, [input]);
+
+  // Auto-create first session
+  useEffect(() => {
+    if (sessions.length === 0) {
+      const nb: ChatSession = { id: genId(), name: '新对话', messages: [], createdAt: Date.now() };
+      setSessions([nb]);
+      setCurrentId(nb.id);
+      setCurrentSessionId(nb.id);
+    }
+  }, []);
 
   const persist = (list: ChatSession[], cid: string) => {
     saveSessions(list);
@@ -99,6 +109,17 @@ export default function ChatView() {
       slist[idx] = { ...slist[idx], messages: finalMsgs };
       setSessions([...slist]);
       saveSessions(slist);
+
+      // Auto-name session after first exchange
+      if (slist[idx].name.startsWith('新对话') || slist[idx].name.startsWith('对话 ')) {
+        aiGenerateTitle(finalMsgs).then(title => {
+          if (title) {
+            const updated = JSON.parse(localStorage.getItem('kun-vocab-chat-sessions') || '[]');
+            const s = updated.find((s:any) => s.id === cid);
+            if (s) { s.name = title; localStorage.setItem('kun-vocab-chat-sessions', JSON.stringify(updated)); setSessions(updated); }
+          }
+        }).catch(() => {});
+      }
     } catch (err: any) {
       const errMsg: ChatMessage = { role: 'assistant', content: '❌ ' + err.message, timestamp: Date.now() };
       const finalMsgs = [...updatedMsgs, errMsg];
@@ -128,6 +149,7 @@ export default function ChatView() {
       });
       setSelectedWords(new Set());
       showToast('成功添加 ' + count + ' 个单词到当前单词本');
+      onRefresh?.();
     } catch {}
   };
 

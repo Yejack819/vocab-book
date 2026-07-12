@@ -114,7 +114,7 @@ function App() {
       <footer className="app-footer">
         <p>数据完全存储在浏览器 localStorage 中，关闭页面不会丢失。</p>
       </footer>
-      {showChat && <div className="modal-overlay" onClick={() => setShowChat(false)}><div className="chat-modal" onClick={e => e.stopPropagation()}><ChatView /></div></div>}
+      {showChat && <div className="modal-overlay" onClick={() => setShowChat(false)}><div className="chat-modal" onClick={e => e.stopPropagation()}><ChatView onRefresh={refresh} /></div></div>}
       <button className="chat-fab" onClick={() => setShowChat(prev => !prev)} title="AI 助手">{showChat ? '←' : 'AI'}</button>
       <FullscreenButton />
     </div>

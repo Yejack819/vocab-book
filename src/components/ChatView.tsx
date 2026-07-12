@@ -114,9 +114,11 @@ export default function ChatView({ onRefresh }: { onRefresh?: () => void }) {
       if (slist[idx].name.startsWith('新对话') || slist[idx].name.startsWith('对话 ')) {
         aiGenerateTitle(finalMsgs).then(title => {
           if (title) {
-            const updated = JSON.parse(localStorage.getItem('kun-vocab-chat-sessions') || '[]');
-            const s = updated.find((s:any) => s.id === cid);
-            if (s) { s.name = title; localStorage.setItem('kun-vocab-chat-sessions', JSON.stringify(updated)); setSessions(updated); }
+            setSessions(prev => {
+              const next = prev.map(s => s.id === cid ? { ...s, name: title } : s);
+              saveSessions(next);
+              return next;
+            });
           }
         }).catch(() => {});
       }

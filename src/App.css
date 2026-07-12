@@ -271,7 +271,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans S
 .send-btn{padding:10px 24px;align-self:flex-end;font-size:.95rem}
 
 .chat-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:300;width:90%;max-width:680px;max-height:85vh;border-radius:var(--radius);overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.2)}
-.chat-modal .chat-view{height:75vh;max-height:680px}
+.chat-modal .chat-view{height:85vh;max-height:800px}
 .chat-session-list{position:absolute;top:54px;left:0;right:0;background:var(--surface);border-bottom:1px solid var(--border);z-index:50;padding:8px 12px;display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;box-shadow:var(--shadow-lg);animation:fadeSlideUp .15s ease}
 .session-item{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:var(--radius-sm);cursor:pointer;transition:background .15s}
 .session-item:hover{background:var(--surface-hover)}

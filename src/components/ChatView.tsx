@@ -1,7 +1,7 @@
 ﻿import { useState, useRef, useEffect } from 'react';
 import type { ChatMessage, ChatSession } from '../types/vocab';
 import { loadSessions, saveSessions, getCurrentSessionId, setCurrentSessionId, loadChatDraft, saveChatDraft, loadAiSettings, addWord } from '../utils/storage';
-import { chatCompletion, aiGenerateTitle } from '../utils/ai';
+import { chatCompletion } from '../utils/ai';
 import { renderMarkdown } from '../utils/markdown';
 
 function genId() { return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
@@ -110,18 +110,6 @@ export default function ChatView({ onRefresh }: { onRefresh?: () => void }) {
       setSessions([...slist]);
       saveSessions(slist);
 
-      // Auto-name session after first exchange
-      if (slist[idx].name.startsWith('新对话') || slist[idx].name.startsWith('对话 ')) {
-        aiGenerateTitle(finalMsgs).then(title => {
-          if (title) {
-            setSessions(prev => {
-              const next = prev.map(s => s.id === cid ? { ...s, name: title } : s);
-              saveSessions(next);
-              return next;
-            });
-          }
-        }).catch(() => {});
-      }
     } catch (err: any) {
       const errMsg: ChatMessage = { role: 'assistant', content: '❌ ' + err.message, timestamp: Date.now() };
       const finalMsgs = [...updatedMsgs, errMsg];

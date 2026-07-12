@@ -51,6 +51,7 @@ export default function Settings({ onClose }: SettingsProps) {
   const refreshStats = () => setStats(loadAiStats());
 
   const totalTokens = stats.estimatedTokens.prompt + stats.estimatedTokens.completion;
+  const fmtTokens = totalTokens >= 1000000 ? (totalTokens / 1000000).toFixed(1) + 'M' : totalTokens >= 1000 ? (totalTokens / 1000).toFixed(1) + 'k' : String(totalTokens);
 
   return (
     <div className="settings">
@@ -79,7 +80,7 @@ export default function Settings({ onClose }: SettingsProps) {
         <div className="stat-card"><span className="stat-number" style={{ color: 'var(--danger)' }}>{stats.failure}</span><span className="stat-label">失败</span></div>
         <div className="stat-card"><span className="stat-number" style={{ color: 'var(--danger)' }}>{stats.error}</span><span className="stat-label">出错</span></div>
         <div className="stat-card"><span className="stat-number" style={{ color: 'var(--text-secondary)' }}>{stats.emptyResponse}</span><span className="stat-label">回答为空</span></div>
-        <div className="stat-card"><span className="stat-number" style={{ fontSize: '0.9rem' }}>≈{totalTokens}</span><span className="stat-label">预计 tokens</span></div>
+        <div className="stat-card"><span className="stat-number" style={{ fontSize: '0.9rem' }}>≈{fmtTokens}</span><span className="stat-label">预计 tokens</span></div>
       </div>
       <div className="form-actions" style={{ marginTop: 0 }}>
         <button type="button" className="btn btn-small btn-danger" onClick={() => { resetAiStats(); refreshStats(); }}>🗑️ 重置统计</button>

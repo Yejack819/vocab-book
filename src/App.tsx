@@ -7,6 +7,7 @@ import Settings from './components/Settings';
 import StudyView from './components/StudyView';
 import FullscreenButton from './components/FullscreenButton';
 import ChatView from './components/ChatView';
+import WelcomeCard from './components/WelcomeCard';
 import './App.css';
 
 type Tab = 'list' | 'study' | 'manage' | 'settings';
@@ -33,6 +34,7 @@ function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
 function App() {
   const [tab, setTab] = useState<Tab>('list');
     const [showChat, setShowChat] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('kun-vocab-welcome-seen'));
   const [notebooks, setNotebooks] = useState<Notebook[]>(() => loadNotebooks());
   const [currentNbId, setCurrentNbId] = useState<string>(() => getCurrentNotebookId());
   const [words, setWords] = useState(() => loadWords());
@@ -105,12 +107,13 @@ function App() {
       <main className="app-main">
         <div className="tab-page" data-active={tab === 'list'}><WordList words={words} filter={filter} onFilterChange={setFilter} onRefresh={refresh} /></div>
         <div className="tab-page" data-active={tab === 'manage'}>
-          <ImportExport onRefresh={refresh} currentNb={currentNb} notebooks={notebooks} onSwitchNotebook={switchNotebook} />
+          <ImportExport onRefresh={refresh} currentNb={currentNb} notebooks={notebooks} onSwitchNotebook={switchNotebook} onShowWelcome={() => { setShowWelcome(true); }} />
         </div>
         <div className="tab-page" data-active={tab === 'settings'}><Settings onClose={() => setTab('list')} /></div>
         <div className="tab-page" data-active={tab === 'study'}><StudyView words={words} filter={filter} onRefresh={refresh} /></div>
       </main>
 
+      {showWelcome && <WelcomeCard onClose={() => { setShowWelcome(false); localStorage.setItem('kun-vocab-welcome-seen', '1'); }} />}
       <footer className="app-footer">
         <p>数据完全存储在浏览器 localStorage 中，关闭页面不会丢失。</p>
       </footer>

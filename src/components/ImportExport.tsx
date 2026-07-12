@@ -7,11 +7,12 @@ interface ImportExportProps {
   currentNb: Notebook;
   notebooks: Notebook[];
   onSwitchNotebook: (id: string) => void;
+  onShowWelcome?: () => void;
 }
 
 type CsvSortBy = 'createdAt' | 'word' | 'meaning';
 
-export default function ImportExport({ onRefresh, currentNb, notebooks, onSwitchNotebook }: ImportExportProps) {
+export default function ImportExport({ onRefresh, currentNb, notebooks, onSwitchNotebook, onShowWelcome }: ImportExportProps & { onShowWelcome?: () => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [importMode, setImportMode] = useState<'append' | 'overwrite'>('append');
@@ -179,6 +180,7 @@ export default function ImportExport({ onRefresh, currentNb, notebooks, onSwitch
         <div className="action-group">
           <h3>示例数据</h3>
           <p className="action-desc">导入 3 个示例单词到当前单词本</p>
+          <button className="btn btn-small" onClick={() => onShowWelcome?.()} style={{marginBottom:4}}>👋 欢迎引导</button>
           <button className="btn btn-small" onClick={async () => {
             try {
               const resp = await fetch('/vocab-export-20260707.json');

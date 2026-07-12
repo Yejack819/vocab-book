@@ -121,34 +121,6 @@ export async function aiGenerateSentence(word: string): Promise<{ english: strin
   throw new Error('Parse failed');
 }
 
-export async function aiGenerateTitle(conversation: {role:string;content:string}[]): Promise<string> {
-  const settings = JSON.parse(localStorage.getItem('kun-vocab-ai-settings') || '{}');
-  const host = (settings.host || '').replace(/\/+$/, '');
-  const key = settings.apiKey || '';
-  const model = settings.model || 'gpt-4o-mini';
-  if (!host || !key) return '';
-
-  try {
-    const resp = await fetch(host + '/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: 'Based on the conversation below, generate a very short title (3-6 words in the user\'s language). Return ONLY the title, no quotes or punctuation.' },
-          ...conversation.slice(-2),
-        ],
-        temperature: 0.3,
-        max_tokens: 30,
-      }),
-    });
-    if (!resp.ok) return '';
-    const data = await resp.json();
-    const txt = data?.choices?.[0]?.message?.content || '';
-    return txt.replace(/[""'']/g, '').trim().slice(0, 30) || '';
-  } catch { return ''; }
-}
-
 export async function aiTranslateSentence(english: string): Promise<string> {
   const settings = loadAiSettings();
   if (!settings.host || !settings.apiKey) throw new Error('请先在「设置」中配置 AI 的 host 和 apiKey');

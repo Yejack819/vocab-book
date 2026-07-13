@@ -107,7 +107,7 @@ export async function aiGenerateSentence(word: string): Promise<{ english: strin
     body: JSON.stringify({
       model: settings.model,
       messages: [
-        { role: 'system', content: '为用户单词 "' + word + '" 提供一句简短的英文例句（不超过15个单词）和中文翻译。仅返回 JSON：{"english":"...","chinese":"..."}' },
+        { role: 'system', content: '为用户单词 "' + word + '" 提供一句简短的英文例句（不超过15个单词）和中文翻译。英文例句中用 **' + word + '** 突出显示该单词。仅返回 JSON：{"english":"...","chinese":"..."}' },
       ],
       temperature: 0.3,
       max_tokens: 300,

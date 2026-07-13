@@ -19,6 +19,10 @@ export default function StudyView({ words, filter, onRefresh }: StudyViewProps) 
   const [favOnlyFilter, setFavOnlyFilter] = useState(false);
   const [jumpInput, setJumpInput] = useState<string | null>(null);
   const jumpRef = useRef<HTMLInputElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [autoInterval, setAutoInterval] = useState(5);
+  const [showChineseOnAuto, setShowChineseOnAuto] = useState(true);
+  const [showAutoSettings, setShowAutoSettings] = useState(false);
 
   // 与列表一致的筛选逻辑
   const filtered = useMemo(() => {
@@ -89,6 +93,29 @@ export default function StudyView({ words, filter, onRefresh }: StudyViewProps) 
     }
   }, [jumpInput]);
 
+  // Auto-play
+  useEffect(() => {
+    if (!isPlaying || filtered.length === 0) return;
+    const halfMs = autoInterval * 1000 / 2;
+    const fullMs = autoInterval * 1000;
+    let halfTimer: any;
+    let fullTimer: any;
+
+    if (showChineseOnAuto) {
+      halfTimer = setTimeout(() => {
+        setRevealed(true);
+        
+      }, halfMs);
+    }
+
+    fullTimer = setTimeout(() => {
+      goNext();
+      
+    }, fullMs);
+
+    return () => { clearTimeout(halfTimer); clearTimeout(fullTimer); };
+  }, [isPlaying, autoInterval, showChineseOnAuto, filtered.length, index]);
+
   const handleToggleFav = () => {
     if (!current) return;
     toggleFavorite(current.id);
@@ -127,6 +154,7 @@ export default function StudyView({ words, filter, onRefresh }: StudyViewProps) 
           {favOnlyFilter && <span className="study-badge">仅收藏</span>}
         </div>
         <div className="study-controls">
+          <button className="btn btn-small" onClick={() => setShowAutoSettings(true)} style={{fontSize:'.82rem'}} title="播放设置">⏱️</button>
           <label className="study-fav-toggle">
             <input type="checkbox" checked={favOnlyFilter} onChange={e => { setFavOnlyFilter(e.target.checked); setIndex(0); setRevealed(false); }} />
             仅收藏
@@ -189,13 +217,32 @@ export default function StudyView({ words, filter, onRefresh }: StudyViewProps) 
         <button className="btn" onClick={goPrev} disabled={clampedIndex === 0}>
           ◀ 上一个
         </button>
-        <button className="btn btn-primary" onClick={toggleReveal}>
-          {revealed ? '🙈 隐藏中文' : '👀 显示中文'}
+        <button className="btn" onClick={() => setIsPlaying(!isPlaying)}>
+          {isPlaying ? '⏸ 暂停' : '▶ 播放'}
         </button>
         <button className="btn" onClick={goNext} disabled={clampedIndex === filtered.length - 1}>
           下一个 ▶
         </button>
       </div>
+
+      {showAutoSettings && (
+        <div className="modal-overlay" onClick={() => setShowAutoSettings(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth:400}}>
+            <h2>⏱️ 自动播放设置</h2>
+            <label style={{display:'block',marginBottom:14,fontSize:'.9rem'}}>
+              切换间隔（秒）
+              <input type="number" min={2} max={60} value={autoInterval} onChange={e => setAutoInterval(Math.max(2, parseInt(e.target.value) || 5))} style={{display:'block',width:'100%',marginTop:4,padding:'8px 12px',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',fontSize:'.9rem',background:'var(--surface)',color:'var(--text)'}} />
+            </label>
+            <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',padding:'8px 12px',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',marginBottom:16}}>
+              <input type="checkbox" checked={showChineseOnAuto} onChange={e => setShowChineseOnAuto(e.target.checked)} style={{accentColor:'var(--primary)',width:18,height:18}} />
+              <span style={{fontSize:'.9rem'}}>自动切换时显示中文（间隔一半时间时展示）</span>
+            </label>
+            <div className="form-actions">
+              <button className="btn" onClick={() => setShowAutoSettings(false)}>关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <p className="study-keyhint">键盘：← 上一个 &nbsp;→ 下一个 &nbsp; 空格/回车 显示/隐藏</p>
     </div>

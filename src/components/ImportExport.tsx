@@ -1,4 +1,14 @@
-﻿import { useRef, useState, useMemo } from 'react';
+const storageKeyNames: Record<string,string> = {
+  'kun-vocab-notebooks':'单词本列表',
+  'kun-vocab-chat-sessions':'聊天会话',
+  'kun-vocab-ai-settings':'AI 设置',
+  'kun-vocab-ai-stats':'AI 统计',
+  'kun-vocab-chat-current-session':'当前聊天会话',
+  'kun-vocab-current-notebook':'当前单词本',
+  'kun-vocab-welcome-seen':'欢迎页已查看',
+  'kun-vocab-theme':'主题设置',
+  'kun-vocab-chat-draft':'聊天草稿',
+};﻿import { useRef, useState, useMemo } from 'react';
 import { importJson, exportJson, clearCurrentNotebook, factoryReset, getStats, addNotebook, renameNotebook, deleteNotebook } from '../utils/storage';
 import type { VocabExport, Notebook } from '../types/vocab';
 
@@ -266,7 +276,7 @@ export default function ImportExport({ onRefresh, currentNb, notebooks, onSwitch
               <div style={{display:'flex',flexDirection:'column',gap:4,maxHeight:300,overflowY:'auto'}}>
                 {storageItems.map((item, i) => (
                   <div key={i} style={{display:'flex',alignItems:'center',gap:8,fontSize:'.85rem',padding:'4px 8px',borderRadius:4,background:item.key.startsWith('kun-vocab-')?'var(--primary-light)':'transparent'}}>
-                    <span style={{flex:1,wordBreak:'break-all'}}>{item.key}</span>
+                    <span style={{flex:1,wordBreak:'break-all'}} title={item.key}>{storageKeyNames[item.key] || item.key}</span>
                     <span style={{color:'var(--text-secondary)',whiteSpace:'nowrap'}}>{(item.size / 1024).toFixed(1)} KB</span>
                     <span style={{color:'var(--text-secondary)',width:40,textAlign:'right'}}>{item.pct}%</span>
                     <button className="icon-btn danger" style={{fontSize:'.8rem'}} onClick={() => {

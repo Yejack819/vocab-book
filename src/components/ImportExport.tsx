@@ -8,6 +8,8 @@ const storageKeyNames: Record<string,string> = {
   'kun-vocab-welcome-seen':'欢迎页已查看',
   'kun-vocab-theme':'主题设置',
   'kun-vocab-chat-draft':'聊天草稿',
+  'kun-vocab-study-interval':'学习自动播放间隔',
+  'kun-vocab-study-show-chinese':'学习自动显示中文',
   'kun-vocab-words-':'单词本数据',
 };﻿import { useRef, useState, useMemo } from 'react';
 import { importJson, exportJson, clearCurrentNotebook, factoryReset, getStats, addNotebook, renameNotebook, deleteNotebook } from '../utils/storage';

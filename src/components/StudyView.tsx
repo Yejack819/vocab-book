@@ -20,8 +20,8 @@ export default function StudyView({ words, filter, onRefresh }: StudyViewProps) 
   const [jumpInput, setJumpInput] = useState<string | null>(null);
   const jumpRef = useRef<HTMLInputElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [autoInterval, setAutoInterval] = useState(5);
-  const [showChineseOnAuto, setShowChineseOnAuto] = useState(true);
+  const [autoInterval, setAutoInterval] = useState(() => parseInt(localStorage.getItem('kun-vocab-study-interval') || '5'));
+  const [showChineseOnAuto, setShowChineseOnAuto] = useState(() => localStorage.getItem('kun-vocab-study-show-chinese') !== 'false');
   const [showAutoSettings, setShowAutoSettings] = useState(false);
 
   // 与列表一致的筛选逻辑
@@ -93,6 +93,9 @@ export default function StudyView({ words, filter, onRefresh }: StudyViewProps) 
     }
   }, [jumpInput]);
 
+  useEffect(() => { localStorage.setItem('kun-vocab-study-interval', String(autoInterval)); }, [autoInterval]);
+  useEffect(() => { localStorage.setItem('kun-vocab-study-show-chinese', String(showChineseOnAuto)); }, [showChineseOnAuto]);
+
   // Auto-play
   useEffect(() => {
     if (!isPlaying || filtered.length === 0) return;
@@ -109,8 +112,11 @@ export default function StudyView({ words, filter, onRefresh }: StudyViewProps) 
     }
 
     fullTimer = setTimeout(() => {
+      if (clampedIndex >= filtered.length - 1) {
+        setIsPlaying(false);
+        return;
+      }
       goNext();
-      
     }, fullMs);
 
     return () => { clearTimeout(halfTimer); clearTimeout(fullTimer); };

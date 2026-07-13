@@ -8,6 +8,7 @@ const storageKeyNames: Record<string,string> = {
   'kun-vocab-welcome-seen':'欢迎页已查看',
   'kun-vocab-theme':'主题设置',
   'kun-vocab-chat-draft':'聊天草稿',
+  'kun-vocab-words-':'单词本数据',
 };﻿import { useRef, useState, useMemo } from 'react';
 import { importJson, exportJson, clearCurrentNotebook, factoryReset, getStats, addNotebook, renameNotebook, deleteNotebook } from '../utils/storage';
 import type { VocabExport, Notebook } from '../types/vocab';
@@ -213,14 +214,23 @@ export default function ImportExport({ onRefresh, currentNb, notebooks, onSwitch
           <button className="btn" onClick={() => {
             const items:{key:string;size:number;pct:number}[] = [];
             let total = 0;
+            const wordKeys:{key:string;size:number}[] = [];
             for (let i = 0; i < localStorage.length; i++) {
               const k = localStorage.key(i);
               if (k) {
                 const v = localStorage.getItem(k) || '';
                 const size = new Blob([k + v]).size;
+                if (k.startsWith('kun-vocab-words-')) {
+                  wordKeys.push({key:k, size});
+                } else {
+                  items.push({key:k, size, pct: 0});
+                }
                 total += size;
-                items.push({key:k, size, pct: 0});
               }
+            }
+            if (wordKeys.length > 0) {
+              const mergedSize = wordKeys.reduce((sum, x) => sum + x.size, 0);
+              items.push({key:'kun-vocab-words-', size:mergedSize, pct: 0});
             }
             items.sort((a,b) => b.size - a.size);
             const limit = storageLimit;
